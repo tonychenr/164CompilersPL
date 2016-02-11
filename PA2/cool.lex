@@ -1,0 +1,231 @@
+/*
+ * CS164: Spring 2004
+ * Programming Assignment 2
+ *
+ * The scanner definition for Cool.
+ *
+ */
+
+import java_cup.runtime.Symbol;
+
+%%
+
+/* Code enclosed in %{ %} is copied verbatim to the lexer class definition.
+ * All extra variables/methods you want to use in the lexer actions go
+ * here.  Don't remove anything that was here initially.  */
+%{
+    // Max size of string constants
+    static int MAX_STR_CONST = 1024;
+
+    // For assembling string constants
+    StringBuffer string_buf = new StringBuffer();
+
+    // For line numbers
+    private int curr_lineno = 1;
+    int get_curr_lineno() {
+	return curr_lineno;
+    }
+
+    private AbstractSymbol filename;
+
+    void set_filename(String fname) {
+	filename = AbstractTable.stringtable.addString(fname);
+    }
+
+    AbstractSymbol curr_filename() {
+	return filename;
+    }
+
+    /*
+     * Add extra field and methods here.
+     */
+
+    int numComments = 0;
+
+    Symbol retString() {
+        String ret = string_buf.toString();
+        string_buf.delete(0, string_buf.length());
+        return new Symbol(TokenConstants.STR_CONST, AbstractTable.stringtable.addString(ret));
+    }
+
+    Symbol retError(String str) {
+        return new Symbol(TokenConstants.ERROR,str);
+    }
+%}
+
+
+/*  Code enclosed in %init{ %init} is copied verbatim to the lexer
+ *  class constructor, all the extra initialization you want to do should
+ *  go here. */
+%init{
+    // empty for now
+%init}
+
+/*  Code enclosed in %eofval{ %eofval} specifies java code that is
+ *  executed when end-of-file is reached.  If you use multiple lexical
+ *  states and want to do something special if an EOF is encountered in
+ *  one of those states, place your code in the switch statement.
+ *  Ultimately, you should return the EOF symbol, or your lexer won't
+ *  work. */
+%eofval{
+    switch(yystate()) {
+    case YYINITIAL:
+        yybegin(EOF);
+        break;
+    case MULTILINE_COMMENT:
+        yybegin(EOF);
+        return retError("EOF in comment");
+    case STRING:
+        yybegin(EOF);
+        return retError("EOF in string constant");
+    case LINE_COMMENT:
+        yybegin(EOF);
+    case STRING_ERROR:
+        yybegin(EOF);
+        return retError("EOF in string constant");
+    }
+    return new Symbol(TokenConstants.EOF);
+%eofval}
+
+/* Do not modify the following two jlex directives */
+%class CoolLexer
+%cup
+
+/* This defines a new start condition for line comments.
+ * .
+ * Hint: You might need additional start conditions. */
+%state LINE_COMMENT
+%state MULTILINE_COMMENT
+%state STRING
+%state EOF
+%state STRING_ERROR
+
+/* Define lexical rules after the %% separator.  There is some code
+ * provided for you that you may wish to use, but you may change it
+ * if you like.
+ * .
+ * Some things you must fill-in (not necessarily a complete list):
+ *   + Handle (* *) comments.  These comments should be properly nested.
+ *   + Some additional multiple-character operators may be needed.  One
+ *     (DARROW) is provided for you.
+ *   + Handle strings.  String constants adhere to C syntax and may
+ *     contain escape sequences: \c is accepted for all characters c
+ *     (except for \n \t \b \f) in which case the result is c.
+ * .
+ * The complete Cool lexical specification is given in the Cool
+ * Reference Manual (CoolAid).  Please be sure to look there. */
+%%
+
+
+<YYINITIAL> {
+    \n                  { curr_lineno ++; }
+    [^\S\n]+            {  }
+    \-\-                { yybegin(LINE_COMMENT); }
+    \(\*                { yybegin(MULTILINE_COMMENT); }
+    \"                  { yybegin(STRING); }
+    \*\)                { return retError("Unmatched *)"); }
+    
+}
+
+
+<LINE_COMMENT> {
+    \n                  { yybegin(YYINITIAL); curr_lineno ++; }
+    .+                  {  }
+}    
+
+
+<MULTILINE_COMMENT> {
+    \(\*                { numComments ++; }
+    \*\)                { numComments --;
+                          if (numComments == 0) yybegin(YYINITIAL); }
+    \n                  { curr_lineno ++; }
+    [^]                 {  }
+}
+
+
+<STRING> {
+    \"                  { yybegin(YYINITIAL);
+                          if (string_buf.length() > MAX_STR_CONST) {
+                              string_buf.delete(0, string_buf.length());
+                              return retError("String constant too long");
+                          }
+                          return retString(); }           
+    \\t                 { string_buf.append('\t'); } 
+    \\n                 { string_buf.append('\n');} 
+    \\r                 { string_buf.append('\r'); }
+    \\b                 { string_buf.append('\b'); }
+    \\f                 { string_buf.append('\f'); }
+    \\\"                { string_buf.append('"'); } 
+    \\                  { string_buf.append('\\'); } 
+    \\\n                { string_buf.append('\n'); curr_lineno ++; } //test this
+    \n                  { yybegin(YYINITIAL);
+                          curr_lineno ++; 
+                          return retError("Unterminated string constant"); }
+    \0                  { yybegin(STRING_ERROR);
+                          return retError("String contains null character"); }
+    \\.                 { string_buf.append(yytext().charAt(1)); }
+    [^]                 { string_buf.append(yytext()); }
+}
+
+<STRING_ERROR> {
+    \n                  { yybegin(YYINITIAL); curr_lineno ++; }
+    \"                  { yybegin(YYINITIAL); }
+}
+
+
+
+
+
+
+<YYINITIAL>"=>"		{ return new Symbol(TokenConstants.DARROW); }
+
+<YYINITIAL>[0-9][0-9]*  { /* Integers */
+                          return new Symbol(TokenConstants.INT_CONST,
+					    AbstractTable.inttable.addString(yytext())); }
+
+<YYINITIAL>[Cc][Aa][Ss][Ee]	{ return new Symbol(TokenConstants.CASE); }
+<YYINITIAL>[Cc][Ll][Aa][Ss][Ss] { return new Symbol(TokenConstants.CLASS); }
+<YYINITIAL>[Ee][Ll][Ss][Ee]  	{ return new Symbol(TokenConstants.ELSE); }
+<YYINITIAL>[Ee][Ss][Aa][Cc]	{ return new Symbol(TokenConstants.ESAC); }
+<YYINITIAL>f[Aa][Ll][Ss][Ee]	{ return new Symbol(TokenConstants.BOOL_CONST, Boolean.FALSE); }
+<YYINITIAL>[Ff][Ii]             { return new Symbol(TokenConstants.FI); }
+<YYINITIAL>[Ii][Ff]  		{ return new Symbol(TokenConstants.IF); }
+<YYINITIAL>[Ii][Nn]             { return new Symbol(TokenConstants.IN); }
+<YYINITIAL>[Ii][Nn][Hh][Ee][Rr][Ii][Tt][Ss] { return new Symbol(TokenConstants.INHERITS); }
+<YYINITIAL>[Ii][Ss][Vv][Oo][Ii][Dd] { return new Symbol(TokenConstants.ISVOID); }
+<YYINITIAL>[Ll][Ee][Tt]         { return new Symbol(TokenConstants.LET); }
+<YYINITIAL>[Ll][Oo][Oo][Pp]  	{ return new Symbol(TokenConstants.LOOP); }
+<YYINITIAL>[Nn][Ee][Ww]		{ return new Symbol(TokenConstants.NEW); }
+<YYINITIAL>[Nn][Oo][Tt] 	{ return new Symbol(TokenConstants.NOT); }
+<YYINITIAL>[Oo][Ff]		{ return new Symbol(TokenConstants.OF); }
+<YYINITIAL>[Pp][Oo][Oo][Ll]  	{ return new Symbol(TokenConstants.POOL); }
+<YYINITIAL>[Tt][Hh][Ee][Nn]   	{ return new Symbol(TokenConstants.THEN); }
+<YYINITIAL>t[Rr][Uu][Ee]	{ return new Symbol(TokenConstants.BOOL_CONST, Boolean.TRUE); }
+<YYINITIAL>[Ww][Hh][Ii][Ll][Ee] { return new Symbol(TokenConstants.WHILE); }
+
+<YYINITIAL>"+"			{ return new Symbol(TokenConstants.PLUS); }
+<YYINITIAL>"/"			{ return new Symbol(TokenConstants.DIV); }
+<YYINITIAL>"-"			{ return new Symbol(TokenConstants.MINUS); }
+<YYINITIAL>"*"			{ return new Symbol(TokenConstants.MULT); }
+<YYINITIAL>"="			{ return new Symbol(TokenConstants.EQ); }
+<YYINITIAL>"<"			{ return new Symbol(TokenConstants.LT); }
+<YYINITIAL>"."			{ return new Symbol(TokenConstants.DOT); }
+<YYINITIAL>"~"			{ return new Symbol(TokenConstants.NEG); }
+<YYINITIAL>","			{ return new Symbol(TokenConstants.COMMA); }
+<YYINITIAL>";"			{ return new Symbol(TokenConstants.SEMI); }
+<YYINITIAL>":"			{ return new Symbol(TokenConstants.COLON); }
+<YYINITIAL>"("			{ return new Symbol(TokenConstants.LPAREN); }
+<YYINITIAL>")"			{ return new Symbol(TokenConstants.RPAREN); }
+<YYINITIAL>"@"			{ return new Symbol(TokenConstants.AT); }
+<YYINITIAL>"}"			{ return new Symbol(TokenConstants.RBRACE); }
+<YYINITIAL>"{"			{ return new Symbol(TokenConstants.LBRACE); }
+
+
+
+
+.                { /*
+                    *  This should be the very last rule and will match
+                    *  everything not matched by other lexical rules.
+                    */
+                   System.err.println("LEXER BUG - UNMATCHED: " + yytext());
+                   return retError(yytext()); }
