@@ -69,11 +69,11 @@ to know more about a failed test case.
   </target>
 
   <target name="execute-all" depends="lexer">
-    <exec executable="java" output="tests/test1.out"> <arg line="-cp .:./coolc.jar Lexer tests/test1.cl"/> </exec>
-    <exec executable="java" output="tests/test2.out"> <arg line="-cp .:./coolc.jar Lexer tests/test2.cl"/> </exec>
-    <exec executable="java" output="tests/test3.out"> <arg line="-cp .:./coolc.jar Lexer tests/test3.cl"/> </exec>
-    <exec executable="java" output="tests/test4.out"> <arg line="-cp .:./coolc.jar Lexer tests/test4.cl"/> </exec>
-    <exec executable="java" output="tests/test5.out"> <arg line="-cp .:./coolc.jar Lexer tests/test5.cl"/> </exec>
+    <exec executable="java" output="tests/test1.out"> <arg line="-cp ./coolc.jar Lexer tests/test1.cl"/> </exec>
+    <exec executable="java" output="tests/test2.out"> <arg line="-cp ./coolc.jar Lexer tests/test2.cl"/> </exec>
+    <exec executable="java" output="tests/test3.out"> <arg line="-cp ./coolc.jar Lexer tests/test3.cl"/> </exec>
+    <exec executable="java" output="tests/test4.out"> <arg line="-cp ./coolc.jar Lexer tests/test4.cl"/> </exec>
+    <exec executable="java" output="tests/test5.out"> <arg line="-cp ./coolc.jar Lexer tests/test5.cl"/> </exec>
   </target>
 
   <!-- target: lexer -->
