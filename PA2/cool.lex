@@ -40,7 +40,7 @@ import java_cup.runtime.Symbol;
      * we can exit multiline comment when this reaches 0 */
     int comment_depth = 0;
 
-
+    /* for current string buffer */
     private boolean str_too_long() {
         return string_buf.length() > MAX_STR_CONST;
     }
@@ -52,6 +52,7 @@ import java_cup.runtime.Symbol;
             AbstractTable.stringtable.addString(string_buf.toString()));
     }
 
+    /* makes an error symbol */
     Symbol ret_error(String str) {
         return new Symbol(TokenConstants.ERROR,str);
     }
@@ -156,7 +157,7 @@ import java_cup.runtime.Symbol;
 
 
 
-/* some more rules */
+/* assignment and less than or equal */
 <YYINITIAL> {
     "<-"                { return new Symbol(TokenConstants.ASSIGN); }
     "<="                { return new Symbol(TokenConstants.LE); }
@@ -211,8 +212,7 @@ import java_cup.runtime.Symbol;
     \\r                 { string_buf.append('\r'); }
     \\b                 { string_buf.append('\b'); }
     \\f                 { string_buf.append('\f'); }
-    \\\"                { string_buf.append('\"'); } 
-    \\                  { string_buf.append('\\'); } 
+    \\\"                { string_buf.append('\"'); }
     \\\n                { string_buf.append('\n');
                           curr_lineno ++; }
     \n                  { yybegin(YYINITIAL);
