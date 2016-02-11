@@ -119,12 +119,11 @@ import java_cup.runtime.Symbol;
 
 <YYINITIAL> {
     \n                  { curr_lineno ++; }
-    [^\S\n]+            {  }
+    [\ \f\r\t\v]+       {  }
     \-\-                { yybegin(LINE_COMMENT); }
     \(\*                { yybegin(MULTILINE_COMMENT); }
     \"                  { yybegin(STRING); }
     \*\)                { return retError("Unmatched *)"); }
-    
 }
 
 
@@ -155,7 +154,7 @@ import java_cup.runtime.Symbol;
     \\r                 { string_buf.append('\r'); }
     \\b                 { string_buf.append('\b'); }
     \\f                 { string_buf.append('\f'); }
-    \\\"                { string_buf.append('"'); } 
+    \\\"                { string_buf.append('\"'); } 
     \\                  { string_buf.append('\\'); } 
     \\\n                { string_buf.append('\n'); curr_lineno ++; } //test this
     \n                  { yybegin(YYINITIAL);
@@ -220,7 +219,10 @@ import java_cup.runtime.Symbol;
 <YYINITIAL>"}"			{ return new Symbol(TokenConstants.RBRACE); }
 <YYINITIAL>"{"			{ return new Symbol(TokenConstants.LBRACE); }
 
-
+<YYINITIAL> {
+    [a-z][A-Za-z0-9\_]* { return new Symbol(TokenConstants.OBJECTID, AbstractTable.stringtable.addString(yytext())); }
+    [A-Z][A-Za-z0-9\_]* { return new Symbol(TokenConstants.TYPEID, AbstractTable.stringtable.addString(yytext())); }
+}
 
 
 .                { /*

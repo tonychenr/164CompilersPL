@@ -29,14 +29,14 @@
   <!-- target: test -->
   <target name="test" depends="lexer">
     <exec executable="java">
-      <arg line="-cp .:./coolc.jar Lexer test.cl"/>
+      <arg line="-cp .;./coolc.jar Lexer test.cl"/>
     </exec>
   </target>
 
   <target name="test.output" depends="lexer">
     <delete file="./test.output"/>
     <exec executable="java" output="test.output">
-      <arg line="-cp .:./coolc.jar Lexer test.cl"/>
+      <arg line="-cp .;./coolc.jar Lexer test.cl"/>
     </exec>
   </target>
 
