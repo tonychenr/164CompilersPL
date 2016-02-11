@@ -45,7 +45,7 @@ import java_cup.runtime.Symbol;
         return string_buf.length() > MAX_STR_CONST;
     }
     private void clear_buf() {
-        string_buf.delete(0, string_buf.length());
+        string_buf.setLength(0);
     }
     private Symbol get_string() {
         return new Symbol(TokenConstants.STR_CONST, 
@@ -216,9 +216,11 @@ import java_cup.runtime.Symbol;
     \\\n                { string_buf.append('\n');
                           curr_lineno ++; }
     \n                  { yybegin(YYINITIAL);
-                          curr_lineno ++; 
+                          curr_lineno ++;
+                          clear_buf();
                           return ret_error("Unterminated string constant"); }
     \0                  { yybegin(STRING_ERROR);
+                          clear_buf();
                           return ret_error("String contains null character"); }
     \\.                 { string_buf.append(yytext().charAt(1)); }
     [^]                 { string_buf.append(yytext()); }
