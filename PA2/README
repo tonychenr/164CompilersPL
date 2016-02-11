@@ -145,7 +145,11 @@ Instructions
 Write-up for PA2
 ----------------
 
-Comments implementation:
+Single line comments implementation:
+Encountering a "--" in YYINITIAL causes state change to LINE_COMMENT. Here we do nothing
+until we hit a '\n', when we return to YYINITIAL.
+
+Multiline comments implementation:
 We used an int to keep track of the current comment depth. When we encounter a "(*"
 in YYINITIAL, comment_depth is set to 1 and we enter MULTILINE_COMMENT state.
 In the MULTILINE_COMMENT state, a  "(*" increments comment_depth (went 1 level deeper)
@@ -155,5 +159,20 @@ intermediate characters are ignored.
 
 Strings implementation:
 Upon encountering a quotation mark in YYINITIAL we enter the STRING state. Here we do
-casework for all the valid escape characters (\t, \n, \r, \b, \f, \\). We also handled
-special cases where the user types (literally) \n and \". 
+casework for all the valid escape characters (\t, \n, \r, \b, \f). A naked '\n'
+(without a '\' prededing it) and '\0' in a string return ERROR. After a '\0\ null
+character we enter the STRING_ERROR state, where we ignore everything until a newline
+or quotation mark, and then go back to YYINITIAL. Any other escapedcharacters are
+appended without the '\'. We also handled special cases for input of '\' followed by
+newline (to allow escaped newline characters) and '\' followed by quotation mark (so
+that escaped quotations dont exit us from the string). All other characters are just
+appended to the string as-is. When we reach a non-escaped quotation mark we just return
+what is in the string buffer and return to YYINITIAL.
+
+Other:
+We added cases for "<-" (ASSIGN) and "<=" (LE) because they were not in the skeleton code.
+We did object ID and type ID lexing with single regex expressions [a-z][A-Za-z0-9\_]* and
+[A-Z][A-Za-z0-9\_]*.
+We added an EOF state to avoid an infinite loop at EOF. When we first enter %eofval, the
+appropriate action is taken depending on current state, and then state is switched to EOF.
+When we enter %eofval with state EOF (second time) we just return the EOF symbol.

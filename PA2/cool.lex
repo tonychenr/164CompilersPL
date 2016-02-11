@@ -212,8 +212,7 @@ import java_cup.runtime.Symbol;
     \\r                 { string_buf.append('\r'); }
     \\b                 { string_buf.append('\b'); }
     \\f                 { string_buf.append('\f'); }
-    \\\"                { string_buf.append('\"'); } 
-    //\\                  { string_buf.append('\\'); } 
+    \\\"                { string_buf.append('\"'); }
     \\\n                { string_buf.append('\n');
                           curr_lineno ++; }
     \n                  { yybegin(YYINITIAL);
