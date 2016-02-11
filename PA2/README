@@ -145,3 +145,15 @@ Instructions
 Write-up for PA2
 ----------------
 
+Comments implementation:
+We used an int to keep track of the current comment depth. When we encounter a "(*"
+in YYINITIAL, comment_depth is set to 1 and we enter MULTILINE_COMMENT state.
+In the MULTILINE_COMMENT state, a  "(*" increments comment_depth (went 1 level deeper)
+and a "*)" decrements it (exited from current level). After a "(*", if comment_depth
+is 0, we have exited the initial comment and must return to YYINITIAL. Any other
+intermediate characters are ignored.
+
+Strings implementation:
+Upon encountering a quotation mark in YYINITIAL we enter the STRING state. Here we do
+casework for all the valid escape characters (\t, \n, \r, \b, \f, \\). We also handled
+special cases where the user types (literally) \n and \". 
