@@ -36,19 +36,23 @@ import java_cup.runtime.Symbol;
 	return filename;
     }
 
-    /*
-     * Add extra field and methods here.
-     */
+    /* keeps track of how deep we currently are in nested comments
+     * we can exit multiline comment when this reaches 0 */
+    int comment_depth = 0;
 
-    int numComments = 0;
 
-    Symbol retString() {
-        String ret = string_buf.toString();
+    private boolean str_too_long() {
+        return string_buf.length() > MAX_STR_CONST;
+    }
+    private void clear_buf() {
         string_buf.delete(0, string_buf.length());
-        return new Symbol(TokenConstants.STR_CONST, AbstractTable.stringtable.addString(ret));
+    }
+    private Symbol get_string() {
+        return new Symbol(TokenConstants.STR_CONST, 
+            AbstractTable.stringtable.addString(string_buf.toString()));
     }
 
-    Symbol retError(String str) {
+    Symbol ret_error(String str) {
         return new Symbol(TokenConstants.ERROR,str);
     }
 %}
@@ -74,15 +78,15 @@ import java_cup.runtime.Symbol;
         break;
     case MULTILINE_COMMENT:
         yybegin(EOF);
-        return retError("EOF in comment");
+        return ret_error("EOF in comment");
     case STRING:
         yybegin(EOF);
-        return retError("EOF in string constant");
+        return ret_error("EOF in string constant");
     case LINE_COMMENT:
         yybegin(EOF);
     case STRING_ERROR:
         yybegin(EOF);
-        return retError("EOF in string constant");
+        return ret_error("EOF in string constant");
     }
     return new Symbol(TokenConstants.EOF);
 %eofval}
@@ -91,90 +95,20 @@ import java_cup.runtime.Symbol;
 %class CoolLexer
 %cup
 
-/* This defines a new start condition for line comments.
- * .
- * Hint: You might need additional start conditions. */
+
+
+
+
+/* additional states */
 %state LINE_COMMENT
 %state MULTILINE_COMMENT
 %state STRING
 %state EOF
 %state STRING_ERROR
 
-/* Define lexical rules after the %% separator.  There is some code
- * provided for you that you may wish to use, but you may change it
- * if you like.
- * .
- * Some things you must fill-in (not necessarily a complete list):
- *   + Handle (* *) comments.  These comments should be properly nested.
- *   + Some additional multiple-character operators may be needed.  One
- *     (DARROW) is provided for you.
- *   + Handle strings.  String constants adhere to C syntax and may
- *     contain escape sequences: \c is accepted for all characters c
- *     (except for \n \t \b \f) in which case the result is c.
- * .
- * The complete Cool lexical specification is given in the Cool
- * Reference Manual (CoolAid).  Please be sure to look there. */
+
+/* lexical rules: */
 %%
-
-
-<YYINITIAL> {
-    \n                  { curr_lineno ++; }
-    [\ \f\r\t\v]+       {  }
-    \-\-                { yybegin(LINE_COMMENT); }
-    \(\*                { yybegin(MULTILINE_COMMENT); }
-    \"                  { yybegin(STRING); }
-    \*\)                { return retError("Unmatched *)"); }
-}
-
-
-<LINE_COMMENT> {
-    \n                  { yybegin(YYINITIAL); curr_lineno ++; }
-    .+                  {  }
-}    
-
-
-<MULTILINE_COMMENT> {
-    \(\*                { numComments ++; }
-    \*\)                { numComments --;
-                          if (numComments == 0) yybegin(YYINITIAL); }
-    \n                  { curr_lineno ++; }
-    [^]                 {  }
-}
-
-
-<STRING> {
-    \"                  { yybegin(YYINITIAL);
-                          if (string_buf.length() > MAX_STR_CONST) {
-                              string_buf.delete(0, string_buf.length());
-                              return retError("String constant too long");
-                          }
-                          return retString(); }           
-    \\t                 { string_buf.append('\t'); } 
-    \\n                 { string_buf.append('\n');} 
-    \\r                 { string_buf.append('\r'); }
-    \\b                 { string_buf.append('\b'); }
-    \\f                 { string_buf.append('\f'); }
-    \\\"                { string_buf.append('\"'); } 
-    \\                  { string_buf.append('\\'); } 
-    \\\n                { string_buf.append('\n'); curr_lineno ++; } //test this
-    \n                  { yybegin(YYINITIAL);
-                          curr_lineno ++; 
-                          return retError("Unterminated string constant"); }
-    \0                  { yybegin(STRING_ERROR);
-                          return retError("String contains null character"); }
-    \\.                 { string_buf.append(yytext().charAt(1)); }
-    [^]                 { string_buf.append(yytext()); }
-}
-
-<STRING_ERROR> {
-    \n                  { yybegin(YYINITIAL); curr_lineno ++; }
-    \"                  { yybegin(YYINITIAL); }
-}
-
-
-
-
-
 
 <YYINITIAL>"=>"		{ return new Symbol(TokenConstants.DARROW); }
 
@@ -219,15 +153,94 @@ import java_cup.runtime.Symbol;
 <YYINITIAL>"}"			{ return new Symbol(TokenConstants.RBRACE); }
 <YYINITIAL>"{"			{ return new Symbol(TokenConstants.LBRACE); }
 
+
+
+
+
+<YYINITIAL> {
+    /* newline and whitespace */
+    \n                  { curr_lineno ++; }
+    [\ \f\r\t\v]+       {  }
+
+    /* start of comments and strings */
+    \-\-                { yybegin(LINE_COMMENT); }
+    \(\*                { yybegin(MULTILINE_COMMENT);
+                          comment_depth = 1; }
+    \"                  { yybegin(STRING); }
+
+    /* unmatched close comment error */
+    \*\)                { return ret_error("Unmatched *)"); }
+}
+
+
+/* handles content of single line comments and exiting from them */
+<LINE_COMMENT> {
+    \n                  { yybegin(YYINITIAL);
+                          curr_lineno ++; }
+    .*                  {  }
+}    
+
+
+/* handles content of multi line comments and exiting from them */
+<MULTILINE_COMMENT> {
+    \(\*                { comment_depth ++; }
+    \*\)                { comment_depth --;
+                          if (comment_depth == 0) yybegin(YYINITIAL); }
+    \n                  { curr_lineno ++; }
+    [^]                 {  }
+}
+
+
+/* handles the content, exiting, and errors of strings */
+<STRING> {
+    \"                  { yybegin(YYINITIAL);
+                          if (str_too_long()) {
+                              clear_buf();
+                              return ret_error("String constant too long");
+                          }
+                          Symbol ret = get_string();
+                          clear_buf();
+                          return ret; }           
+    \\t                 { string_buf.append('\t'); } 
+    \\n                 { string_buf.append('\n');} 
+    \\r                 { string_buf.append('\r'); }
+    \\b                 { string_buf.append('\b'); }
+    \\f                 { string_buf.append('\f'); }
+    \\\"                { string_buf.append('\"'); } 
+    \\                  { string_buf.append('\\'); } 
+    \\\n                { string_buf.append('\n');
+                          curr_lineno ++; }
+    \n                  { yybegin(YYINITIAL);
+                          curr_lineno ++; 
+                          return ret_error("Unterminated string constant"); }
+    \0                  { yybegin(STRING_ERROR);
+                          return ret_error("String contains null character"); }
+    \\.                 { string_buf.append(yytext().charAt(1)); }
+    [^]                 { string_buf.append(yytext()); }
+}
+
+
+/* this state is entered after a null character is reached inside a string
+ * does nothing until the end of the string so we can resume lexing after */
+<STRING_ERROR> {
+    \n                  { yybegin(YYINITIAL);
+                          curr_lineno ++; }
+    \"                  { yybegin(YYINITIAL); }
+    [^]                 {  }
+}
+
+
+/* handles object IDs and type IDs
+ * since this is after all the keywords, those will be matched instead if encountered */
 <YYINITIAL> {
     [a-z][A-Za-z0-9\_]* { return new Symbol(TokenConstants.OBJECTID, AbstractTable.stringtable.addString(yytext())); }
     [A-Z][A-Za-z0-9\_]* { return new Symbol(TokenConstants.TYPEID, AbstractTable.stringtable.addString(yytext())); }
 }
 
 
-.                { /*
-                    *  This should be the very last rule and will match
-                    *  everything not matched by other lexical rules.
-                    */
+
+
+
+.                { /* any character reached at this point is unmatched and is an error */
                    System.err.println("LEXER BUG - UNMATCHED: " + yytext());
-                   return retError(yytext()); }
+                   return ret_error(yytext()); }
