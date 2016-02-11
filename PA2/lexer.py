@@ -22,5 +22,6 @@ classpath = script_location + "/coolc.jar"
 opt = "-Djava.awt.headless=true"
 
 cmd = "java %s -cp \"%s\" Lexer %s" % (opt, classpath, arg_str)
+print cmd
 p = executePass(cmd, windows, None, None)
 p.wait()

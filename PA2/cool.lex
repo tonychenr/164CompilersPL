@@ -156,20 +156,25 @@ import java_cup.runtime.Symbol;
 
 
 
+/* some more rules */
+<YYINITIAL> {
+    "<-"                { return new Symbol(TokenConstants.ASSIGN); }
+    "<="                { return new Symbol(TokenConstants.LE); }
+}
 
 <YYINITIAL> {
     /* newline and whitespace */
     \n                  { curr_lineno ++; }
-    [\ \f\r\t\v]+       {  }
+    [^\S\n]+            {  }
 
     /* start of comments and strings */
-    \-\-                { yybegin(LINE_COMMENT); }
-    \(\*                { yybegin(MULTILINE_COMMENT);
+    "--"                { yybegin(LINE_COMMENT); }
+    "(*"                { yybegin(MULTILINE_COMMENT);
                           comment_depth = 1; }
     \"                  { yybegin(STRING); }
 
     /* unmatched close comment error */
-    \*\)                { return ret_error("Unmatched *)"); }
+    "*)"                { return ret_error("Unmatched *)"); }
 }
 
 
@@ -183,8 +188,8 @@ import java_cup.runtime.Symbol;
 
 /* handles content of multi line comments and exiting from them */
 <MULTILINE_COMMENT> {
-    \(\*                { comment_depth ++; }
-    \*\)                { comment_depth --;
+    "(*"                { comment_depth ++; }
+    "*)"                { comment_depth --;
                           if (comment_depth == 0) yybegin(YYINITIAL); }
     \n                  { curr_lineno ++; }
     [^]                 {  }
@@ -241,6 +246,6 @@ import java_cup.runtime.Symbol;
 
 
 
-.                { /* any character reached at this point is unmatched and is an error */
-                   System.err.println("LEXER BUG - UNMATCHED: " + yytext());
+[^]                { /* any character reached at this point is unmatched and is an error */
+                   //System.err.println("LEXER BUG - UNMATCHED: " + yytext());
                    return ret_error(yytext()); }
