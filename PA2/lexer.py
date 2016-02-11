@@ -13,7 +13,7 @@ else:
 	windows=False
 
 arglen = len(sys.argv)
-arg_str = ' '.join(sys.argv[1:arglen])
+arg_str = ' '.join(sys.argv[1:arglen]).replace("\\","/")
 
 script_file = inspect.getfile(inspect.currentframe())
 script_location = os.path.dirname(os.path.abspath(script_file)).replace("\\","/")

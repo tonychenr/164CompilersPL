@@ -11,23 +11,26 @@ def executePass(cmd, windows, i, o):
 
 if platform.system() == "Windows":
 	windows=True
+	sep=";"
 else:
 	windows=False
+	sep=":"
 
 arglen = len(sys.argv)
-arg_str = ' '.join(sys.argv[1:arglen])
+arg_str = ' '.join(sys.argv[1:arglen]).replace("\\","/")
 
 script_file = inspect.getfile(inspect.currentframe())
 script_location = os.path.dirname(os.path.abspath(script_file)).replace("\\","/")
-classpath = script_location + "/coolc.jar"
+classpath = "." + sep + script_location + "/coolc.jar"
+refclasspath = script_location + "/coolc.jar"
 
 opt = "-Djava.awt.headless=true"
 
 passes = ["Lexer", "Parser", "Semant", "Cgen"]
-mapper = lambda x: "java %s -cp \"%s\" %s %s" % (opt, classpath, x, arg_str)
+mapper = lambda x: "java %s -cp \"%s\" %s %s" % (opt, refclasspath, x, arg_str)
 cmds = map(mapper, passes)
 
-cmds[0] = "java %s -cp \".:%s\" Lexer %s" %(opt, classpath, arg_str)
+cmds[0] = "java %s -cp \"%s\" Lexer %s" %(opt, classpath, arg_str)
 p1 = executePass(cmds[0], windows, None, PIPE)
 p2 = executePass(cmds[1], windows, p1.stdout, PIPE)
 p3 = executePass(cmds[2], windows, p2.stdout, PIPE)
