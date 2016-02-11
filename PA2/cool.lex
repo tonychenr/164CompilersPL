@@ -217,9 +217,11 @@ import java_cup.runtime.Symbol;
     \\\n                { string_buf.append('\n');
                           curr_lineno ++; }
     \n                  { yybegin(YYINITIAL);
-                          curr_lineno ++; 
+                          curr_lineno ++;
+                          clear_buf();
                           return ret_error("Unterminated string constant"); }
     \0                  { yybegin(STRING_ERROR);
+                          clear_buf();
                           return ret_error("String contains null character"); }
     \\.                 { string_buf.append(yytext().charAt(1)); }
     [^]                 { string_buf.append(yytext()); }
