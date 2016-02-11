@@ -231,7 +231,8 @@ import java_cup.runtime.Symbol;
  * does nothing until the end of the string so we can resume lexing after */
 <STRING_ERROR> {
     \n                  { yybegin(YYINITIAL);
-                          curr_lineno ++; }
+                          curr_lineno ++;
+                          return ret_error("Unterminated string constant"); }
     \"                  { yybegin(YYINITIAL); }
     [^]                 {  }
 }
