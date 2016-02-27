@@ -1,0 +1,366 @@
+#name "test.cl"
+#1 TYPEID My_test
+#1 OBJECTID t_ests
+#4 STR_CONST "hello \nworld"
+#7 ERROR "Unterminated string constant"
+#7 OBJECTID world
+#8 ERROR "Unterminated string constant"
+#10 ERROR "Unterminated string constant"
+#10 STR_CONST "hello world"
+#25 ERROR "String constant too long"
+#27 ERROR "String contains null character"
+#29 ERROR "String contains null character"
+#31 ERROR "String contains null character"
+#32 ERROR "Unterminated string constant"
+#32 OBJECTID world
+#33 ERROR "Unterminated string constant"
+#34 ERROR "String contains null character"
+#36 STR_CONST "0a\bc \b\t\n\f"
+#38 ERROR "\000"
+#40 ERROR "Unmatched *)"
+#49 CLASS
+#49 TYPEID CellularAutomaton
+#49 INHERITS
+#49 TYPEID IO
+#49 '{'
+#50 OBJECTID population_map
+#50 ':'
+#50 TYPEID String
+#50 ';'
+#52 OBJECTID init
+#52 '('
+#52 OBJECTID map
+#52 ':'
+#52 TYPEID String
+#52 ')'
+#52 ':'
+#52 TYPEID SELF_TYPE
+#52 '{'
+#53 '{'
+#54 OBJECTID population_map
+#54 ASSIGN
+#54 OBJECTID map
+#54 ';'
+#55 OBJECTID self
+#55 ';'
+#56 '}'
+#57 '}'
+#57 ';'
+#59 OBJECTID print
+#59 '('
+#59 ')'
+#59 ':'
+#59 TYPEID SELF_TYPE
+#59 '{'
+#60 '{'
+#61 OBJECTID out_string
+#61 '('
+#61 OBJECTID population_map
+#61 '.'
+#61 OBJECTID concat
+#61 '('
+#61 STR_CONST "\n"
+#61 ')'
+#61 ')'
+#61 ';'
+#62 OBJECTID self
+#62 ';'
+#63 '}'
+#64 '}'
+#64 ';'
+#66 OBJECTID num_cells
+#66 '('
+#66 ')'
+#66 ':'
+#66 TYPEID Int
+#66 '{'
+#67 OBJECTID population_map
+#67 '.'
+#67 OBJECTID length
+#67 '('
+#67 ')'
+#68 '}'
+#68 ';'
+#70 OBJECTID cell
+#70 '('
+#70 OBJECTID position
+#70 ':'
+#70 TYPEID Int
+#70 ')'
+#70 ':'
+#70 TYPEID String
+#70 '{'
+#71 OBJECTID population_map
+#71 '.'
+#71 OBJECTID substr
+#71 '('
+#71 OBJECTID position
+#71 ','
+#71 INT_CONST 1
+#71 ')'
+#72 '}'
+#72 ';'
+#74 OBJECTID cell_left_neighbor
+#74 '('
+#74 OBJECTID position
+#74 ':'
+#74 TYPEID Int
+#74 ')'
+#74 ':'
+#74 TYPEID String
+#74 '{'
+#75 IF
+#75 OBJECTID position
+#75 '='
+#75 INT_CONST 0
+#75 THEN
+#76 OBJECTID cell
+#76 '('
+#76 OBJECTID num_cells
+#76 '('
+#76 ')'
+#76 '-'
+#76 INT_CONST 1
+#76 ')'
+#77 ELSE
+#78 OBJECTID cell
+#78 '('
+#78 OBJECTID position
+#78 '-'
+#78 INT_CONST 1
+#78 ')'
+#79 FI
+#80 '}'
+#80 ';'
+#82 OBJECTID cell_right_neighbor
+#82 '('
+#82 OBJECTID position
+#82 ':'
+#82 TYPEID Int
+#82 ')'
+#82 ':'
+#82 TYPEID String
+#82 '{'
+#83 IF
+#83 OBJECTID position
+#83 '='
+#83 OBJECTID num_cells
+#83 '('
+#83 ')'
+#83 '-'
+#83 INT_CONST 1
+#83 THEN
+#84 OBJECTID cell
+#84 '('
+#84 INT_CONST 0
+#84 ')'
+#85 ELSE
+#86 OBJECTID cell
+#86 '('
+#86 OBJECTID position
+#86 '+'
+#86 INT_CONST 1
+#86 ')'
+#87 FI
+#88 '}'
+#88 ';'
+#92 OBJECTID cell_at_next_evolution
+#92 '('
+#92 OBJECTID position
+#92 ':'
+#92 TYPEID Int
+#92 ')'
+#92 ':'
+#92 TYPEID String
+#92 '{'
+#93 IF
+#93 '('
+#93 IF
+#93 OBJECTID cell
+#93 '('
+#93 OBJECTID position
+#93 ')'
+#93 '='
+#93 STR_CONST "X"
+#93 THEN
+#93 INT_CONST 1
+#93 ELSE
+#93 INT_CONST 0
+#93 FI
+#94 '+'
+#94 IF
+#94 OBJECTID cell_left_neighbor
+#94 '('
+#94 OBJECTID position
+#94 ')'
+#94 '='
+#94 STR_CONST "X"
+#94 THEN
+#94 INT_CONST 1
+#94 ELSE
+#94 INT_CONST 0
+#94 FI
+#95 '+'
+#95 IF
+#95 OBJECTID cell_right_neighbor
+#95 '('
+#95 OBJECTID position
+#95 ')'
+#95 '='
+#95 STR_CONST "X"
+#95 THEN
+#95 INT_CONST 1
+#95 ELSE
+#95 INT_CONST 0
+#95 FI
+#96 '='
+#96 INT_CONST 1
+#96 ')'
+#97 THEN
+#98 STR_CONST "X"
+#99 ELSE
+#100 ERROR "'"
+#100 '.'
+#100 ERROR "'"
+#101 FI
+#102 '}'
+#102 ';'
+#104 OBJECTID evolve
+#104 '('
+#104 ')'
+#104 ':'
+#104 TYPEID SELF_TYPE
+#104 '{'
+#105 '('
+#105 LET
+#105 OBJECTID position
+#105 ':'
+#105 TYPEID Int
+#105 IN
+#106 '('
+#106 LET
+#106 OBJECTID num
+#106 ':'
+#106 TYPEID Int
+#106 ASSIGN
+#106 OBJECTID num_cells
+#106 ERROR "["
+#106 ERROR "]"
+#106 IN
+#107 '('
+#107 LET
+#107 OBJECTID temp
+#107 ':'
+#107 TYPEID String
+#107 IN
+#108 '{'
+#109 WHILE
+#109 OBJECTID position
+#109 '<'
+#109 OBJECTID num
+#109 LOOP
+#110 '{'
+#111 OBJECTID temp
+#111 ASSIGN
+#111 OBJECTID temp
+#111 '.'
+#111 OBJECTID concat
+#111 '('
+#111 OBJECTID cell_at_next_evolution
+#111 '('
+#111 OBJECTID position
+#111 ')'
+#111 ')'
+#111 ';'
+#112 OBJECTID position
+#112 ASSIGN
+#112 OBJECTID position
+#112 '+'
+#112 INT_CONST 1
+#112 ';'
+#113 '}'
+#114 POOL
+#114 ';'
+#115 OBJECTID population_map
+#115 ASSIGN
+#115 OBJECTID temp
+#115 ';'
+#116 OBJECTID self
+#116 ';'
+#117 '}'
+#118 ')'
+#118 ')'
+#118 ')'
+#119 '}'
+#119 ';'
+#120 '}'
+#120 ';'
+#122 CLASS
+#122 TYPEID Main
+#122 '{'
+#123 OBJECTID cells
+#123 ':'
+#123 TYPEID CellularAutomaton
+#123 ';'
+#125 OBJECTID main
+#125 '('
+#125 ')'
+#125 ':'
+#125 TYPEID SELF_TYPE
+#125 '{'
+#126 '{'
+#127 OBJECTID cells
+#127 ASSIGN
+#127 '('
+#127 NEW
+#127 TYPEID CellularAutomaton
+#127 ')'
+#127 '.'
+#127 OBJECTID init
+#127 '('
+#127 STR_CONST "         X         "
+#127 ')'
+#127 ';'
+#128 OBJECTID cells
+#128 '.'
+#128 OBJECTID print
+#128 '('
+#128 ')'
+#128 ';'
+#129 '('
+#129 LET
+#129 OBJECTID countdown
+#129 ':'
+#129 TYPEID Int
+#129 ASSIGN
+#129 INT_CONST 20
+#129 IN
+#130 WHILE
+#130 OBJECTID countdown
+#130 ERROR ">"
+#130 INT_CONST 0
+#130 LOOP
+#131 '{'
+#132 OBJECTID cells
+#132 '.'
+#132 OBJECTID evolve
+#132 '('
+#132 ')'
+#132 ';'
+#133 OBJECTID cells
+#133 '.'
+#133 OBJECTID print
+#133 '('
+#133 ')'
+#133 ';'
+#134 OBJECTID countdown
+#134 ASSIGN
+#134 OBJECTID countdown
+#134 '-'
+#134 INT_CONST 1
+#134 ';'
+#136 POOL
+#137 ')'
+#137 ';'
+#142 ERROR "EOF in comment"
+java -Djava.awt.headless=true -cp "c:/Prudhvi/junioryear/cs164/group/PA2/coolc.jar" Lexer test.cl
