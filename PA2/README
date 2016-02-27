@@ -176,3 +176,15 @@ We did object ID and type ID lexing with single regex expressions [a-z][A-Za-z0-
 We added an EOF state to avoid an infinite loop at EOF. When we first enter %eofval, the
 appropriate action is taken depending on current state, and then state is switched to EOF.
 When we enter %eofval with state EOF (second time) we just return the EOF symbol.
+
+Test Cases:
+Most of our tests involved Strings, Comments and Errors. The provided test cases covered 
+most of the identifiers and other COOL features. Our basic test cases tested the basic
+specifications of Strings, Comments, and Errors. We tested '\c' type characters, String
+length, newline characters, unescaped newline characters, null characters, unmatched
+multiline comments, EOF in String constant, object ID, type ID, invalid identifiers, and
+nested multiline comments (this is tested along with the EOF in comment error in test.cl).
+In addition, we also mixed test cases to test for some edge cases. We tested for null
+strings followed by null characters, null strings followed by unescaped newlines.
+Interestingly, the null string followed by unescaped newline causes an Unterminated String
+constant error.
