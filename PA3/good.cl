@@ -18,10 +18,12 @@ Class C inherits A {
 
     (* Test expr@... *)
     testatmethod(num : Int) : A {
-        num <- 2;
-        new A;
+        {
+            num <- 2;
+            new A;
+        }
     };
-}
+};
 
 Class BB__ inherits C {
 
@@ -38,7 +40,7 @@ Class BB__ inherits C {
     };
 
     (* Test expr@... *)
-    testat(var : C) {
+    testat(var : C) : SELF_TYPE {
         {
             var@C.testatmethod(1);
             self;
@@ -88,9 +90,9 @@ Class BB__ inherits C {
 
                 (* Test if *)
                 if 1 < 2 then
-                    temp2 <- 3;
+                    temp2 <- 3
                 else
-                    temp2 <- 4;
+                    temp2 <- 4
                 fi;
 
                 (* Test block *)
