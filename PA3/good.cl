@@ -55,6 +55,10 @@ Class BB__ inherits C {
       esac
     };
 
+    testletAmbiguity(): SELF_TYPE {
+        let x : Int in 1 + 2
+    };
+
     testmany() : SELF_TYPE {
 
         (* Test let nest with 1 or more expressions in declaration *)
