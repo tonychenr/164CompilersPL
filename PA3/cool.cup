@@ -291,7 +291,7 @@ multi_let
 	| OBJECTID:obj COLON TYPEID:type IN expr:e
 		{: RESULT = new let(curr_lineno(), obj, type, new no_expr(curr_lineno()), e); :}
 	| error
-		{: RESULT = new let(curr_lineno(), obj, type, new no_expr(curr_lineno()), e); :}
+		//{: RESULT = new let(curr_lineno(), obj, type, new no_expr(curr_lineno()), e); :}
 	;
 
 /* list of cases for case expression */
@@ -320,7 +320,6 @@ block_expr
 	/* several expressions */
 	| block_expr:eb expr:e SEMI
 		{: RESULT = eb.appendElement(e); :}
-	| error
 	;
 
 
