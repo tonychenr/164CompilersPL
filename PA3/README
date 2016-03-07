@@ -167,8 +167,9 @@ Write-up for PA3
 We followed the list of COOL productions in the COOL manual to complete
 this assignment. The productions that split into finite number of terminals/
 nonterminals are straightforward to implement. For the productions involving
-lists of terminals/nonterminals, we added list nonterminals, which we defined
-recursively.
+lists of terminals/nonterminals (cases list, multiple let bindings, features
+list, class list, formals list, and actuals list), we added list nonterminals,
+which we defined recursively.
 In order to recover from errors, we added "error SEMI" as block, class, and 
 feature productions to allow the parser to continue from the next block
 expression, class definition, or feature definition after the semicolon end
