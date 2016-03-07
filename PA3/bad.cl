@@ -25,6 +25,11 @@ Class G inherits F {
     test1 : Int;
     test2 fdsa;
     test3 : Int <- 1;
+    test4 fdsa;
+
+    testRecoverFeatures(): SELF_TYPE {
+        let x : Int in 1 + 2;
+    };
 
     testmany() : SELF_TYPE {
         (* Test error handling in let *)
@@ -33,8 +38,20 @@ Class G inherits F {
             (* Test error handling in block *)
             temp <- 1 + while;
             temp <- 1 + 1;
+            temp <- 1 + while;
         }
     )};
+
+        (* Test if parsing stops if there is an error at end of let binding *)
+    -- testmany2() : SELF_TYPE {
+    --     (* Test error handling in let *)
+    --     (let temp : Int, temp3 : Int, voidobj : Object, temp2 in
+    --     {
+    --         (* Test error handling in block *)
+    --         temp <- 1 + while;
+    --         temp <- 1 + 1;
+    --     }
+    -- )};
 };
 
 (* error:  a is not a type identifier *)
@@ -45,7 +62,7 @@ Class C inherits a {
 Class D inherts A {
 };
 
-(* error:  should recover *)
+(* error:  unterminated class cannot recover *)
 Class E inherits A {
 ;
 
