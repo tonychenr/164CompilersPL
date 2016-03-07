@@ -164,6 +164,19 @@ Instructions
 Write-up for PA3
 ----------------
 
+We followed the list of COOL productions in the COOL manual to complete
+this assignment. The productions that split into finite number of terminals/
+nonterminals are straightforward to implement. For the productions involving
+lists of terminals/nonterminals (cases list, multiple let bindings, features
+list, class list, formals list, and actuals list), we added list nonterminals,
+which we defined recursively.
+In order to recover from errors, we added "error SEMI" as block, class, and 
+feature productions to allow the parser to continue from the next block
+expression, class definition, or feature definition after the semicolon end
+of the erroneous one.
+We also used precedence declarations to enforce the precedences for unary
+operators in the COOL manual.
+
 We handled let statement ambiguity by putting the precedence of the let statement
 below all the rest. By doing this, we ensure that the parser will always shift
 instead of reducing the let statement. As we saw in lecture, we shift if the precedence
@@ -186,3 +199,5 @@ of the let bindings. We expected it to recover, but the example parser found the
 and terminated. We realized a bug in our parser where it continued onward instead. We 
 fixed the behavior to emulate the example parser by requiring the error to be followed by
 a comma and a recursion on the production.
+
+
