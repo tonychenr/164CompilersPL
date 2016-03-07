@@ -276,16 +276,22 @@ expr
 	| error
     ;
 
+/* Multiple let expression variables chained to allow multiple initializations */
 multi_let
+	/* let expression variable with initialization, multiple variables */
 	::= OBJECTID:obj COLON TYPEID:type ASSIGN expr:asgn COMMA multi_let:e
 		{: RESULT = new let(curr_lineno(), obj, type, asgn, e); :}
+		/* let expression variable without initialization, multiple variables */
 	| OBJECTID:obj COLON TYPEID:type COMMA multi_let:e
 		{: RESULT = new let(curr_lineno(), obj, type, new no_expr(curr_lineno()), e); :}
+		/* end of let expression with initialized variable */
 	| OBJECTID:obj COLON TYPEID:type ASSIGN expr:asgn IN expr:e
 		{: RESULT = new let(curr_lineno(), obj, type, asgn, e); :}
+		/* end of let expression without initialized variable */
 	| OBJECTID:obj COLON TYPEID:type IN expr:e
 		{: RESULT = new let(curr_lineno(), obj, type, new no_expr(curr_lineno()), e); :}
 	| error
+		{: RESULT = new let(curr_lineno(), obj, type, new no_expr(curr_lineno()), e); :}
 	;
 
 /* list of cases for case expression */
