@@ -163,3 +163,26 @@ Instructions
 
 Write-up for PA3
 ----------------
+
+We handled let statement ambiguity by putting the precedence of the let statement
+below all the rest. By doing this, we ensure that the parser will always shift
+instead of reducing the let statement. As we saw in lecture, we shift if the precedence
+of the input terminal is higher.
+
+In good.cl, we tested many of the cool syntax elements by going down the list.
+When we placed the precedence of the let statement in the wrong place, it failed
+the test for let ambiguity in good.cl. It passes with the precedence we put in and
+by default as well.
+
+In bad.cl, we tested error handling. To test if the parser recovers from a specific
+error in class list, feature list, let binding, or expressions in blocks, we introduced
+an error, then followed it with another error to see if the parser caught that next error.
+We tested to see if the parser recovered when a class had and open bracket and no closing
+bracket, but had a semicolon using the method described above. We saw this interesting case
+from a piazza post and decided to test it.
+
+In bad.cl, we also tested what would happen if there was a bad let binding at the end
+of the let bindings. We expected it to recover, but the example parser found the error
+and terminated. We realized a bug in our parser where it continued onward instead. We 
+fixed the behavior to emulate the example parser by requiring the error to be followed by
+a comma and a recursion on the production.
