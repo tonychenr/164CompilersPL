@@ -163,3 +163,15 @@ Instructions
 
 Write-up for PA3
 ----------------
+
+We followed the list of COOL productions in the COOL manual to complete
+this assignment. The productions that split into finite number of terminals/
+nonterminals are straightforward to implement. For the productions involving
+lists of terminals/nonterminals, we added list nonterminals, which we defined
+recursively.
+In order to recover from errors, we added "error SEMI" as block, class, and 
+feature productions to allow the parser to continue from the next block
+expression, class definition, or feature definition after the semicolon end
+of the erroneous one.
+We also used precedence declarations to enforce the precedences for unary
+operators in the COOL manual.

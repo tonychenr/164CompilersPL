@@ -134,6 +134,8 @@ class_list
 	/* several classes */
 	| class_list:cl class_cc:c
 	    {: RESULT = cl.appendElement(c); :}
+	| error class_list:cl
+		{: RESULT = cl; :}
 	| error
 	;
 
@@ -273,7 +275,6 @@ expr
 	/* let expression with without initialization, multiple variables */
 	| LET OBJECTID:obj COLON TYPEID:type COMMA multi_let:e
 		{: RESULT = new let(curr_lineno(), obj, type, new no_expr(curr_lineno()), e); :}
-	| error
     ;
 
 /* Multiple let expression variables chained to allow multiple initializations */
@@ -290,8 +291,9 @@ multi_let
 		/* end of let expression without initialized variable */
 	| OBJECTID:obj COLON TYPEID:type IN expr:e
 		{: RESULT = new let(curr_lineno(), obj, type, new no_expr(curr_lineno()), e); :}
+	| error COMMA multi_let:e
+		{: RESULT = new let(curr_lineno(), new IdSymbol("", 0, 0), new IdSymbol("", 0, 0), new no_expr(curr_lineno()), e); :}
 	| error
-		//{: RESULT = new let(curr_lineno(), obj, type, new no_expr(curr_lineno()), e); :}
 	;
 
 /* list of cases for case expression */
@@ -320,6 +322,9 @@ block_expr
 	/* several expressions */
 	| block_expr:eb expr:e SEMI
 		{: RESULT = eb.appendElement(e); :}
+	//| block_expr:eb error SEMI
+	| error SEMI
+	| error
 	;
 
 

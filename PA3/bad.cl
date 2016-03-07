@@ -28,9 +28,10 @@ Class G inherits F {
 
     testmany() : SELF_TYPE {
         (* Test error handling in let *)
-        (let temp : Int, temp2, temp3 : Int, voidobj : Object in
+        (let temp : Int, temp2, temp3, voidobj : Object in
         {
             (* Test error handling in block *)
+            temp <- 1 + while;
             temp <- 1 + while;
             temp <- 1 + 1;
         }
@@ -45,7 +46,7 @@ Class C inherits a {
 Class D inherts A {
 };
 
-(* error:  closing brace is missing *)
+(* error:  should recover *)
 Class E inherits A {
 ;
 
