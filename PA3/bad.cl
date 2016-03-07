@@ -34,7 +34,7 @@ Class G inherits F {
             temp <- 1 + while;
             temp <- 1 + 1;
         }
-    };
+    )};
 };
 
 (* error:  a is not a type identifier *)
@@ -45,7 +45,7 @@ Class C inherits a {
 Class D inherts A {
 };
 
-(* error:  closing brace is missing *)
+(* error:  should recover *)
 Class E inherits A {
 ;
 

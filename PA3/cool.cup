@@ -290,8 +290,7 @@ multi_let
 		/* end of let expression without initialized variable */
 	| OBJECTID:obj COLON TYPEID:type IN expr:e
 		{: RESULT = new let(curr_lineno(), obj, type, new no_expr(curr_lineno()), e); :}
-	| error
-		{: RESULT = new let(curr_lineno(), obj, type, new no_expr(curr_lineno()), e); :}
+	| error multi_let
 	;
 
 /* list of cases for case expression */
@@ -318,9 +317,9 @@ block_expr
 	::= expr:e SEMI
 		{: RESULT = new Expressions(curr_lineno()).appendElement(e); :}
 	/* several expressions */
-	| block_expr:eb expr:e SEMI
+	| expr:e block_expr:eb SEMI
 		{: RESULT = eb.appendElement(e); :}
-	| error
+	| error SEMI
 	;
 
 
