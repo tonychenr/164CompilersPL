@@ -34,7 +34,7 @@ Class G inherits F {
             temp <- 1 + while;
             temp <- 1 + 1;
         }
-
+    };
 };
 
 (* error:  a is not a type identifier *)

@@ -84,6 +84,7 @@ nonterminal Expressions actuals, exp_list;
 nonterminal Cases case_list;
 nonterminal Case case_c;
 nonterminal Expressions block_expr;
+nonterminal Expression multi_let;
 
 
 /*
@@ -133,6 +134,7 @@ class_list
 	/* several classes */
 	| class_list:cl class_cc:c
 	    {: RESULT = cl.appendElement(c); :}
+	| error
 	;
 
 
@@ -157,6 +159,7 @@ optional_feature_list
 	/* nonempty feature list */
 	| optional_feature_list:fl feature:f
 		{: RESULT = fl.appendElement(f); :}
+	| error
 	;
 
 
@@ -184,6 +187,7 @@ formal_list
 	/* multiple formals */
 	| formal_list:fl COMMA formal:f
 		{: RESULT = fl.appendElement(f); :}
+	| error
 	;
 
 /* an element of formal_list */
@@ -263,9 +267,26 @@ expr
 	/* let expression with initialization*/
 	| LET OBJECTID:obj COLON TYPEID:type ASSIGN expr:asgn IN expr:e
 		{: RESULT = new let(curr_lineno(), obj, type, asgn, e); :}
+	/* let expression with initilization, multiple variables */
+	| LET OBJECTID:obj COLON TYPEID:type ASSIGN expr:asgn COMMA multi_let:e
+		{: RESULT = new let(curr_lineno(), obj, type, asgn, e); :}
+	/* let expression with without initialization, multiple variables */
+	| LET OBJECTID:obj COLON TYPEID:type COMMA multi_let:e
+		{: RESULT = new let(curr_lineno(), obj, type, new no_expr(curr_lineno()), e); :}
 	| error
     ;
 
+multi_let
+	::= OBJECTID:obj COLON TYPEID:type ASSIGN expr:asgn COMMA multi_let:e
+		{: RESULT = new let(curr_lineno(), obj, type, asgn, e); :}
+	| OBJECTID:obj COLON TYPEID:type COMMA multi_let:e
+		{: RESULT = new let(curr_lineno(), obj, type, new no_expr(curr_lineno()), e); :}
+	| OBJECTID:obj COLON TYPEID:type ASSIGN expr:asgn IN expr:e
+		{: RESULT = new let(curr_lineno(), obj, type, asgn, e); :}
+	| OBJECTID:obj COLON TYPEID:type IN expr:e
+		{: RESULT = new let(curr_lineno(), obj, type, new no_expr(curr_lineno()), e); :}
+	| error
+	;
 
 /* list of cases for case expression */
 case_list
@@ -275,6 +296,7 @@ case_list
 	/* multiple cases */
 	| case_list:cl case_c:c
 		{: RESULT = cl.appendElement(c); :}
+	| error
 	;
 
 /* an element of case_list */
@@ -292,6 +314,7 @@ block_expr
 	/* several expressions */
 	| block_expr:eb expr:e SEMI
 		{: RESULT = eb.appendElement(e); :}
+	| error
 	;
 
 
@@ -303,6 +326,7 @@ actuals
         /* List of arguments */
 	| LPAREN exp_list:el RPAREN
 	    {: RESULT = el; :}
+	| error
 	;
 
 
@@ -314,4 +338,5 @@ exp_list
         /* Several expressions */
 	| exp_list:el COMMA expr:e
 	    {: RESULT = el.appendElement(e); :}
+	| error
 	;
