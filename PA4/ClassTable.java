@@ -29,6 +29,7 @@ import java.io.PrintStream;
 class ClassTable {
     private int semantErrors;
     private PrintStream errorStream;
+    public Graph inheritanceGraph;
 
     /** Creates data structures representing basic Cool classes (Object,
      * IO, Int, Bool, String).  Please note: as is this method does not
@@ -202,10 +203,20 @@ class ClassTable {
 
 
     public ClassTable(Classes cls) {
-	semantErrors = 0;
-	errorStream = System.err;
-	
-	/* fill this in */
+    	semantErrors = 0;
+    	errorStream = System.err;
+    	
+    	/* fill this in */
+    	inheritanceGraph = new Graph();
+        inheritanceGraph.addVertex(TreeConstants.Object_.toString());
+        inheritanceGraph.addVertex(TreeConstants.Int.toString());
+        inheritanceGraph.addVertex(TreeConstants.Str.toString());
+        inheritanceGraph.addVertex(TreeConstants.Bool.toString());
+        inheritanceGraph.addVertex(TreeConstants.IO.toString());
+        inheritanceGraph.addEdge(TreeConstants.Object_.toString(), TreeConstants.Int.toString());
+        inheritanceGraph.addEdge(TreeConstants.Object_.toString(), TreeConstants.Str.toString());
+        inheritanceGraph.addEdge(TreeConstants.Object_.toString(), TreeConstants.Bool.toString());
+        inheritanceGraph.addEdge(TreeConstants.Object_.toString(), TreeConstants.IO.toString());
     }
 
     /** Prints line number and file name of the given class.

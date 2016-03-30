@@ -268,15 +268,76 @@ class programc extends Program {
 	to test the complete compiler.
     */
     public void semant() {
-	/* ClassTable constructor may do some semantic analysis */
-	ClassTable classTable = new ClassTable(classes);
-	
-	/* some semantic analysis code may go here */
+    /* ClassTable constructor may do some semantic analysis */
+        ClassTable classTable = new ClassTable(classes);
+        
+        /* some semantic analysis code may go here */
+        class_c childClass;
+        String parentName;
+        PrintStream error;
+        for (Enumeration e = classes.getElements(); e.hasMoreElements(); ) {
+            childClass = (class_c) e.nextElement();
+            if (preGraphClassSemanticCheck(childClass, classTable)) {
+                parentName = childClass.getParent().toString()
+                classTable.inheritanceGraph.addVertex(childName);
+                classTable.inheritanceGraph.addVertex(parentName);
+                int edgeAdded = classTable.inheritanceGraph.addEdge(parentName, childName);
+                if (edgeAdded == Graph.CHILD_HAS_PARENT) {
+                    error = classTable.semantError(childClass);
+                    error.println("Multiple definitions of class" + childName + "not allowed.");
+                }
+            }
+        }
+        if (classTable.errors()) {
+            System.err.println("Compilation halted due to static semantic errors.");
+            System.exit(1);
+        }
+    }
 
-	if (classTable.errors()) {
-	    System.err.println("Compilation halted due to static semantic errors.");
-	    System.exit(1);
-	}
+    private boolean preGraphClassSemanticCheck(class_c childClass, ClassTable classTable) {
+        boolean noErrors = true;
+        String childName = childClass.getName().toString();
+        PrintStream error;
+        /* Basic classes may not be redefined */
+        if (childName.equals(TreeConstants.Object_.toString())) {
+            noErrors = false;
+            error = classTable.semantError(childClass);
+            error.println("Cannot redefine basic class Object.");
+        } else if (childName.equals(TreeConstants.Int.toString())) {
+            noErrors = false;
+            error = classTable.semantError(childClass);
+            error.println("Cannot redefine basic class Int.");
+        } else if (childName.equals(TreeConstants.Str.toString())) {
+            noErrors = false;
+            error = classTable.semantError(childClass);
+            error.println("Cannot redefine basic class String.");
+        } else if (childName.equals(TreeConstants.Bool.toString())) {
+            noErrors = false;
+            error = classTable.semantError(childClass);
+            error.println("Cannot redefine basic class Bool.");
+        } else if (childName.equals(TreeConstants.IO.toString())) {
+            noErrors = false;
+            error = classTable.semantError(childClass);
+            error.println("Cannot redefine basic class IO.");
+        } else {
+            /* childClass may not inherit from Int, String, or Bool basic classes */
+            String parentName = childClass.getParent().toString();
+            if (parentName.equals(TreeConstants.Int.toString())) {
+                noErrors = false;
+                error = classTable.semantError(childClass);
+                error.println("Class " + parentName + " may not inherit from basic class Int.");
+            } else if (parentName.equals(TreeConstants.Str.toString())) {
+                noErrors = false;
+                error = classTable.semantError(childClass);
+                error.println("Class " + parentName + " may not inherit from basic class String.");
+            } else if (parentName.equals(TreeConstants.Bool.toString())) {
+                noErrors = false;
+                error = classTable.semantError(childClass);
+                error.println("Class " + parentName + " may not inherit from basic class Bool.");
+            }
+        }
+
+        return noErrors;
     }
 
 }
