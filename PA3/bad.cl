@@ -27,6 +27,7 @@ Class G inherits F {
     test3 : Int <- 1;
     test4 fdsa;
 
+    (* Test if we recover from feature method error *)
     testRecoverFeatures(): SELF_TYPE {
         let x : Int in 1 + 2;
     };
@@ -62,11 +63,15 @@ Class C inherits a {
 Class D inherts A {
 };
 
-(* error:  unterminated class cannot recover *)
+(* Test no bracket at end of class, but has semicolon termination *)
 Class E inherits A {
 ;
 
 (* Test cannot continue to H because E never terminated properly *)
 Class H inherits A {
+};
+
+(* Test if parser recovers *)
+Class D inherts A {
 };
 

@@ -80,7 +80,7 @@ Class BB__ inherits C {
                         temp <- position;
                     }
                 pool;
-                (* Test let ambiguity *)
+                (* Test operator precedence *)
                 temp <- 10 + 5 - 5 * 6 / 2;
 
                 (* Test isvoid *)
