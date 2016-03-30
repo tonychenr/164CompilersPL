@@ -1,4 +1,5 @@
 import java.util.HashMap;
+import java.util.LinkedList;
 
 public class Graph {
     HashMap<String,Vertex> s2v;
@@ -31,8 +32,19 @@ public class Graph {
     }
 
     /* returns null if no cycle
-     * or the last class name in a cycle */
+     * or the name of a class in a cycle */
     public String hasCycle () {
+        LinkedList<Vertex> fringe = new LinkedList<Vertex>();
+        fringe.add(obj);
+        while (!fringe.isEmpty()) {
+            Vertex v = fringe.pop();
+            v.visited = true;
+            fringe.addAll(v.children);
+        }
+        for (Vertex v : s2v.values()) {
+            if (!v.visited) return v.s;
+        }
+
         return null;
     }
 }
