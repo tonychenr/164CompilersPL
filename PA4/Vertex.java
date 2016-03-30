@@ -1,14 +1,18 @@
-import java.util.LinkedList;
+import java.util.HashSet;
 
 public class Vertex {
     String s;
-    LinkedList<Vertex> children;
+    HashSet<Vertex> children;
     Vertex parent;
+    static Vertex obj = null;
+    boolean visited;
 
     public Vertex (String s) {
         this.s = s;
-        children = new LinkedList<Vertex>();
-        parent = null;
+        children = new HashSet<Vertex>();
+        parent = obj;
+        if (obj != null) obj.addChild(this);
+        visited = false;
     }
 
     public void addChild (Vertex v) {
@@ -16,11 +20,8 @@ public class Vertex {
     }
 
     public void setParent (Vertex p) {
+        parent.children.remove(this);
         parent = p;
-    }
-
-    public boolean hasParent () {
-        return parent != null;
     }
 
     @Override
