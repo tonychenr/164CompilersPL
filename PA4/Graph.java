@@ -3,21 +3,16 @@ import java.util.LinkedList;
 
 public class Graph {
     HashMap<String,Vertex> s2v;
-    Vertex obj;
 
     public Graph () {
         s2v = new HashMap<String,Vertex>();
-        obj = new Vertex("Object");
-        Vertex.obj = obj;
-        s2v.put("Object", obj);
-        s2v.put("IO", new Vertex("IO"));
     }
 
     /* returns false if s is already in the graph */
-    public boolean addVertex (String s) {
-        if (s2v.containsKey(s)) return false;
-        Vertex v = new Vertex(s);
-        s2v.put(s,v);
+    public boolean addVertex (class_c myClass) {
+        if (s2v.containsKey(myClass.getName().toString())) return false;
+        Vertex v = new Vertex(myClass);
+        s2v.put(myClass.getName().toString(),v);
         return true;
     }
 
@@ -32,17 +27,18 @@ public class Graph {
     }
 
     /* returns null if no cycle
-     * or the name of a class in a cycle */
-    public String hasCycle () {
+     * or the name of a class in a cycle 
+     * Vertex of class Object must be added before using this method */
+    public class_c hasCycle () {
         LinkedList<Vertex> fringe = new LinkedList<Vertex>();
-        fringe.add(obj);
+        fringe.add(s2v.get("Object"));
         while (!fringe.isEmpty()) {
             Vertex v = fringe.pop();
             v.visited = true;
             fringe.addAll(v.children);
         }
         for (Vertex v : s2v.values()) {
-            if (!v.visited) return v.s;
+            if (!v.visited) return v.myClass;
         }
 
         return null;

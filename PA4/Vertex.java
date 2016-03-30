@@ -1,17 +1,15 @@
 import java.util.HashSet;
 
 public class Vertex {
-    String s;
+    class_c myClass;
     HashSet<Vertex> children;
     Vertex parent;
-    static Vertex obj = null;
     boolean visited;
 
-    public Vertex (String s) {
-        this.s = s;
+    public Vertex (class_c myClass) {
+        this.myClass = myClass;
         children = new HashSet<Vertex>();
-        parent = obj;
-        if (obj != null) obj.addChild(this);
+        parent = null;
         visited = false;
     }
 
@@ -20,12 +18,14 @@ public class Vertex {
     }
 
     public void setParent (Vertex p) {
-        parent.children.remove(this);
+        if (parent != null) {
+            parent.children.remove(this);
+        }
         parent = p;
     }
 
     @Override
     public String toString() {
-        return s;
+        return myClass.getName().toString();
     }
 }

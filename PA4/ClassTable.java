@@ -36,7 +36,7 @@ class ClassTable {
      * do anything useful; you will need to edit it to make if do what
      * you want.
      * */
-    private void installBasicClasses() {
+    private void installBasicClassesToGraph() {
 	AbstractSymbol filename 
 	    = AbstractTable.stringtable.addString("<basic class>");
 	
@@ -190,7 +190,15 @@ class ClassTable {
 
 	/* Do somethind with Object_class, IO_class, Int_class,
            Bool_class, and Str_class here */
-
+        inheritanceGraph.addVertex(Object_class);
+        inheritanceGraph.addVertex(Int_class);
+        inheritanceGraph.addVertex(Str_class);
+        inheritanceGraph.addVertex(Bool_class);
+        inheritanceGraph.addVertex(IO_class);
+        inheritanceGraph.addEdge(TreeConstants.Object_.toString(), TreeConstants.Int.toString());
+        inheritanceGraph.addEdge(TreeConstants.Object_.toString(), TreeConstants.Str.toString());
+        inheritanceGraph.addEdge(TreeConstants.Object_.toString(), TreeConstants.Bool.toString());
+        inheritanceGraph.addEdge(TreeConstants.Object_.toString(), TreeConstants.IO.toString());
 	// NOT TO BE INCLUDED IN SKELETON
 	
 	Object_class.dump_with_types(System.err, 0);
@@ -208,15 +216,7 @@ class ClassTable {
     	
     	/* fill this in */
     	inheritanceGraph = new Graph();
-        inheritanceGraph.addVertex(TreeConstants.Object_.toString());
-        inheritanceGraph.addVertex(TreeConstants.Int.toString());
-        inheritanceGraph.addVertex(TreeConstants.Str.toString());
-        inheritanceGraph.addVertex(TreeConstants.Bool.toString());
-        inheritanceGraph.addVertex(TreeConstants.IO.toString());
-        inheritanceGraph.addEdge(TreeConstants.Object_.toString(), TreeConstants.Int.toString());
-        inheritanceGraph.addEdge(TreeConstants.Object_.toString(), TreeConstants.Str.toString());
-        inheritanceGraph.addEdge(TreeConstants.Object_.toString(), TreeConstants.Bool.toString());
-        inheritanceGraph.addEdge(TreeConstants.Object_.toString(), TreeConstants.IO.toString());
+        installBasicClassesToGraph();
     }
 
     /** Prints line number and file name of the given class.
@@ -266,7 +266,7 @@ class ClassTable {
 
     // NOT TO BE INCLUDED IN SKELETON
     public static void main(String[] args) {
-	new ClassTable(null).installBasicClasses();
+	new ClassTable(null);
     }
 }
 			  

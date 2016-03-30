@@ -282,11 +282,10 @@ class programc extends Program {
         /* Checks for multiple definitions of class */
         for (Enumeration e = classes.getElements(); e.hasMoreElements(); ) {
             childClass = (class_c) e.nextElement();
-            childName = childClass.getName().toString();
             if (preGraphClassSemanticCheck(childClass, classTable)) {
-                if (!classTable.inheritanceGraph.addVertex(childName)) {
+                if (!classTable.inheritanceGraph.addVertex(childClass)) {
                     error = classTable.semantError(childClass);
-                    error.println("Multiple definitions of class" + childName + "not allowed.");
+                    error.println("Multiple definitions of class" + childClass.getName().toString() + "not allowed.");
                 }
             }
         }
@@ -297,13 +296,19 @@ class programc extends Program {
             childClass = (class_c) e.nextElement();
             childName = childClass.getName().toString();
             if (classTable.inheritanceGraph.s2v.containsKey(childName)) {
-                parentName = childClass.getParent().toString()
-                int edgeAdded = classTable.inheritanceGraph.addEdge(parentName, childName);
-                if (edgeAdded == Graph.NO_VERTEX) {
+                parentName = childClass.getParent().toString();
+                /* Edge cannot be added if parent is undefined */
+                if (!classTable.inheritanceGraph.addEdge(parentName, childName)) {
                     error = classTable.semantError(childClass);
                     error.println("Class" + childName + "may not inherit from undefined Class" + parentName + ".");
                 }
             }
+        }
+
+        class_c cyclicClass = classTable.inheritanceGraph.hasCycle();
+        if (cyclicClass != null) {
+            error = classTable.semantError(cyclicClass);
+            error.println("Class" + cyclicClass.getName().toString() + "is involved in an inheritance cycle.");
         }
 
         if (classTable.errors()) {
@@ -386,6 +391,7 @@ class programc extends Program {
 
     /* Checks semantics for Main Class of program */
     private void checkMainClass(ClassTable classTable, boolean hasMainClass, boolean hasMainMethod, boolean hasNoFormals) {
+        PrintStream error;
         if (!hasMainClass) {
             error = classTable.semantError();
             error.println("Main Class has not been defined.");
