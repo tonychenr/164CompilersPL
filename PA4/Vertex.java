@@ -4,11 +4,12 @@ public class Vertex {
     String s;
     LinkedList<Vertex> children;
     Vertex parent;
+    static Vertex obj = null;
 
     public Vertex (String s) {
         this.s = s;
         children = new LinkedList<Vertex>();
-        parent = null;
+        parent = obj;
     }
 
     public void addChild (Vertex v) {
@@ -17,10 +18,6 @@ public class Vertex {
 
     public void setParent (Vertex p) {
         parent = p;
-    }
-
-    public boolean hasParent () {
-        return parent != null;
     }
 
     @Override
