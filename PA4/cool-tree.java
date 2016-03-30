@@ -273,21 +273,61 @@ class programc extends Program {
         
         /* some semantic analysis code may go here */
         class_c childClass;
+        class_c mainClass = null;
+        String childName;
         String parentName;
         PrintStream error;
+
+        /* Add valid vertices to inheritance graph and check basic class semantics */
+        /* Checks for multiple definitions of class */
         for (Enumeration e = classes.getElements(); e.hasMoreElements(); ) {
             childClass = (class_c) e.nextElement();
+            childName = childClass.getName().toString();
             if (preGraphClassSemanticCheck(childClass, classTable)) {
-                parentName = childClass.getParent().toString()
-                classTable.inheritanceGraph.addVertex(childName);
-                classTable.inheritanceGraph.addVertex(parentName);
-                int edgeAdded = classTable.inheritanceGraph.addEdge(parentName, childName);
-                if (edgeAdded == Graph.CHILD_HAS_PARENT) {
+                if (!classTable.inheritanceGraph.addVertex(childName)) {
                     error = classTable.semantError(childClass);
                     error.println("Multiple definitions of class" + childName + "not allowed.");
                 }
             }
         }
+
+        /* Add edges to inheritance graph and check for class semantics */
+        /* Checks for inheritance from undefined class */
+        for (Enumeration e = classes.getElements(); e.hasMoreElements(); ) {
+            childClass = (class_c) e.nextElement();
+            childName = childClass.getName().toString();
+            if (classTable.inheritanceGraph.s2v.containsKey(childName)) {
+                parentName = childClass.getParent().toString()
+                int edgeAdded = classTable.inheritanceGraph.addEdge(parentName, childName);
+                if (edgeAdded == Graph.NO_VERTEX) {
+                    error = classTable.semantError(childClass);
+                    error.println("Class" + childName + "may not inherit from undefined Class" + parentName + ".");
+                }
+            }
+        }
+
+        if (classTable.errors()) {
+            System.err.println("Compilation halted due to static semantic errors.");
+            System.exit(1);
+        }
+
+        /* For each class, build the symbol table */
+        /* Check for attribute definition in child class */
+        /* Check for attribute/method multiple definition */
+        boolean hasMainClass = false;
+        boolean hasMainMethod = false;
+        boolean hasNoFormals = false;
+        for (Enumeration e = classes.getElements(); e.hasMoreElements(); ) {
+            childClass = (class_c) e.nextElement();
+            childName = childClass.getName().toString();
+            if (childName.equals("Main")) {
+                hasMainClass = true;
+            }
+        }
+
+        /* Check semantics for Main class */
+        checkMainClass(classTable, hasMainClass, hasMainMethod, hasNoFormals);
+
         if (classTable.errors()) {
             System.err.println("Compilation halted due to static semantic errors.");
             System.exit(1);
@@ -338,6 +378,28 @@ class programc extends Program {
         }
 
         return noErrors;
+    }
+
+    private boolean checkClassGraphCycles(ClassTable classTable) {
+        return false;
+    }
+
+    /* Checks semantics for Main Class of program */
+    private void checkMainClass(ClassTable classTable, boolean hasMainClass, boolean hasMainMethod, boolean hasNoFormals) {
+        if (!hasMainClass) {
+            error = classTable.semantError();
+            error.println("Main Class has not been defined.");
+        } else {
+            if (!hasMainMethod) {
+                error = classTable.semantError();
+                error.println("Method main in Main Class has not been defined.");
+            } else {
+                if (!hasNoFormals) {
+                    error = classTable.semantError();
+                    error.println("Method main in Main Class must not have arguments.");
+                }
+            }
+        }
     }
 
 }
