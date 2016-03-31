@@ -609,7 +609,7 @@ class programc extends Program {
     }
     private AbstractSymbol typeCheckExpression(ClassTable classTable, SymbolTable scopeTable, class_c childClass, Expression e) {
         if (e instanceof assign) {
-
+            return typeCheckAssignExpression(classTable, scopeTable, childClass, (assign) e);
         } else if (e instanceof static_dispatch) {
 
         } else if (e instanceof dispatch) {
@@ -661,8 +661,26 @@ class programc extends Program {
         } else if (e instanceof object) {
             
         }
-        
+
         return TreeConstants.No_type;
+    }
+
+    /* Perform typechecking on an assign expression */
+    private AbstractSymbol typeCheckAssignExpression(ClassTable classTable, SymbolTable scopeTable, class_c childClass, assign e) {
+        AbstractSymbol returnType = typeCheckExpression(classTable, scopeTable, childClass, e.expr);
+        String returnTypeString = returnType.toString();
+        String declaredType = (String) scopeTable.lookup(e.name);
+        e.set_type(returnType);
+
+        /* Check if initialization type inherits from declared type of variable */
+        if (!checkTypeInheritance(classTable, childClass, returnTypeString, declaredType)) {
+            PrintStream error = classTable.semantError(childClass);
+            error.println("Initialization of type " + returnTypeString
+                            + "does not inherit from declared type" + declaredType
+                            + "of variable " + e.name.toString() + ".");
+            returnType = TreeConstants.Object_;
+        }
+        return returnType;
     }
 
 }
