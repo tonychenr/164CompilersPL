@@ -11,6 +11,8 @@
 import java.util.Enumeration;
 import java.io.PrintStream;
 import java.util.Vector;
+import java.util.HashMap;
+import java.util.HashSet;
 
 
 /** Defines simple phylum Program */
@@ -316,22 +318,11 @@ class programc extends Program {
             System.exit(1);
         }
 
-        /* For each class, build the symbol table */
-        /* Check for attribute definition in child class */
-        /* Check for attribute/method multiple definition */
-        boolean hasMainClass = false;
-        boolean hasMainMethod = false;
-        boolean hasNoFormals = false;
-        for (Enumeration e = classes.getElements(); e.hasMoreElements(); ) {
-            childClass = (class_c) e.nextElement();
-            childName = childClass.getName().toString();
-            if (childName.equals("Main")) {
-                hasMainClass = true;
-            }
-        }
+        /* Get class attributes and methods for use in Symbol Table */
+        fillClassFeatureInformation(classTable, classes);
 
-        /* Check semantics for Main class */
-        checkMainClass(classTable, hasMainClass, hasMainMethod, hasNoFormals);
+        /* Last step in semantic analyzer - Type Checking */
+        nameScopeTypeChecking(classTable, classes);
 
         if (classTable.errors()) {
             System.err.println("Compilation halted due to static semantic errors.");
@@ -385,8 +376,217 @@ class programc extends Program {
         return noErrors;
     }
 
-    private boolean checkClassGraphCycles(ClassTable classTable) {
-        return false;
+    private void fillClassFeatureInformation(ClassTable classTable, Classes classes) {
+        class_c childClass;
+        String childName;
+        for (Enumeration e = classes.getElements(); e.hasMoreElements(); ) {
+            childClass = (class_c) e.nextElement();
+            childName = childClass.getName().toString();
+            Features features = childClass.getFeatures();
+            classTable.attributeTable.put(childName, new HashMap<AbstractSymbol, String>());
+            classTable.methodTable.put(childName, new HashMap<AbstractSymbol, method>());
+            for (Enumeration<Feature> f = features.getElements(); f.hasMoreElements();){
+                Feature currFeature = f.nextElement();
+                if(currFeature instanceof attr){
+                    attr a = (attr) currFeature;
+                    HashMap<AbstractSymbol, String> classAttributeTable = classTable.attributeTable.get(childName);
+                    classAttributeTable.put(a.name, a.type_decl.toString());
+                } else {
+                    method m = (method) currFeature;
+                    HashMap<AbstractSymbol, method> classMethodTable = classTable.methodTable.get(childName);
+                    classMethodTable.put(m.name, m);
+                }
+            }
+        }
+    }
+
+    private void nameScopeTypeChecking(ClassTable classTable, Classes classes) {
+        /* For each class, build the symbol table */
+        /* Check for attribute definition in child class */
+        /* Check for attribute/method multiple definition */
+        boolean hasMainClass = false;
+        boolean hasMainMethod = false;
+        boolean hasNoFormals = false;
+        class_c childClass;
+        String childName;
+        SymbolTable scopeTable = new SymbolTable();
+        for (Enumeration e = classes.getElements(); e.hasMoreElements(); ) {
+            childClass = (class_c) e.nextElement();
+            childName = childClass.getName().toString();
+            fillClassScope(classTable, scopeTable, childName);
+            if (childName.equals("Main")) {
+                hasMainClass = true;
+            }
+
+            Features features = childClass.getFeatures();
+            for (Enumeration<Feature> f = features.getElements(); f.hasMoreElements();){
+                Feature currFeature = f.nextElement();
+                if(currFeature instanceof attr){
+                    attr a = (attr) currFeature;
+                    checkAttribute(classTable, scopeTable, childClass, a);
+                } else{
+                    method m = (method) currFeature;
+                    checkMethod(classTable, scopeTable, childClass, m);
+                    if (childName.equals("Main") && m.name.toString().equals("main")) {
+                        hasMainMethod = true;
+                        if (!m.formals.getElements().hasMoreElements()) {
+                            hasNoFormals = true;
+                        }
+                    }
+                }
+            }
+            scopeTable.exitScope();
+        }
+
+        /* Check semantics for Main class */
+        checkMainClass(classTable, hasMainClass, hasMainMethod, hasNoFormals);
+    }
+
+    /* Populates class/inherited attributes into scope of class childName */
+    private void fillClassScope(ClassTable classTable, SymbolTable scopeTable, String childName) {
+        scopeTable.enterScope();
+        for (Vertex v = classTable.inheritanceGraph.s2v.get(childName); v != null; v = v.parent) {
+            HashMap<AbstractSymbol, String> classAttributes = classTable.attributeTable.get(childName);
+            for (AbstractSymbol attrName : classAttributes.keySet()) {
+                if (scopeTable.lookup(attrName) != null) {
+                    PrintStream error = classTable.semantError();
+                    error.println("Attribute" + attrName.toString() + " in Class" + childName + " already defined in parent class");
+                }
+                scopeTable.addId(attrName, classAttributes.get(attrName));
+            }
+        }
+        scopeTable.addId(TreeConstants.self, TreeConstants.SELF_TYPE.toString());
+    }
+
+    private void checkAttribute(ClassTable classTable, SymbolTable scopeTable, class_c childClass, attr a) {
+        AbstractSymbol typeSymbol = typeCheckExpression(classTable, scopeTable, childClass, a.init);
+        String typeString = typeSymbol.toString();
+        String declaredType = a.type_decl.toString();
+        if (!typeString.equals(TreeConstants.No_type.toString())) {
+            if (!checkTypeInheritance(classTable, childClass, typeString, declaredType)) {
+                PrintStream error = classTable.semantError(childClass);
+                error.println("Initialization of type " + typeString
+                                + "does not inherit from declared type" + declaredType
+                                + "of attribute " + a.name.toString() + ".");
+            }
+        }
+    }
+
+    private void checkMethod(ClassTable classTable, SymbolTable scopeTable, class_c childClass, method m) {
+        fillMethodScope(scopeTable, m);
+        /* Check if returned type matches method declaration return type */
+        AbstractSymbol returnTypeSymbol = typeCheckExpression(classTable, scopeTable, childClass, m.expr);
+        String returnTypeString = returnTypeSymbol.toString();
+        String declaredReturnType = m.return_type.toString();
+        if (!checkTypeInheritance(classTable, childClass, returnTypeString, declaredReturnType)) {
+            PrintStream error = classTable.semantError(childClass);
+            error.println("Return object type " + returnTypeString
+                            + "does not match or inherit from declared return type" + declaredReturnType
+                            + "of method " + m.name.toString() + ".");
+        }
+
+        /* Check for multiple defined formal method parameters */
+        checkFormals(childClass, classTable, m);
+
+        /* Check overridden method */
+        checkMethodOverride(childClass, classTable, m);
+        scopeTable.exitScope();
+    }
+
+    /* Set the scope for a method of a class */
+    private void fillMethodScope(SymbolTable scopeTable, method m) {
+        scopeTable.enterScope();
+        for (Enumeration<Formal> e = m.formals.getElements(); e.hasMoreElements();){
+            formalc f = (formalc) e.nextElement();
+            scopeTable.addId(f.name, f.type_decl.toString());
+        }
+    }
+
+    /* Check if childType inherits from parentType */
+    private boolean checkTypeInheritance(ClassTable classTable, class_c childClass, String childType, String parentType) {
+        if(childType.equals(parentType)){
+            return true;
+        } else {
+            String selfTypeString = TreeConstants.SELF_TYPE.toString();
+            if (parentType.equals(selfTypeString) && !childType.equals(selfTypeString)){
+                return false;
+            } else if(childType == selfTypeString){
+                childType = childClass.getName().toString();
+            }
+        }
+        
+        /* Check if childType inherits from parentType */
+        boolean inherits = false;
+        for (Vertex v = classTable.inheritanceGraph.s2v.get(childType).parent; v != null; v = v.parent) {
+            if (v.myClass.getName().toString().equals(parentType)) {
+                inherits = true;
+                break;
+            }
+        }
+        return inherits;
+    }
+
+    /* Checks whether formal parameters of method m are multiple defined */
+    private void checkFormals(class_c childClass, ClassTable classTable, method m) {
+        HashSet<String> formals = new HashSet<String>();
+        for (Enumeration<Formal> e = m.formals.getElements(); e.hasMoreElements();){
+            formalc f = (formalc) e.nextElement();
+            String formalName = f.name.toString();
+            if (formals.contains(formalName)) {
+                PrintStream error = classTable.semantError(childClass);
+                error.println("Formal parameter" + formalName + "multiple defined.");
+            } else {
+                formals.add(formalName);
+            }
+        }
+    }
+
+    /* Checks if method overrides parent class method. If so, checks if signature matches */
+    private void checkMethodOverride(class_c childClass, ClassTable classTable, method m) {
+        method parentMethod = null;
+        String childName = childClass.getName().toString();
+        AbstractSymbol methodName = m.name;
+        for (Vertex v = classTable.inheritanceGraph.s2v.get(childName).parent; v != null; v = v.parent) {
+            String parentName = v.myClass.getName().toString();
+            HashMap<AbstractSymbol, method> parentMethodTable = classTable.methodTable.get(parentName);
+            if (parentMethodTable.containsKey(methodName)) {
+                parentMethod = parentMethodTable.get(methodName);
+                break;
+            }
+        }
+
+        /* Method m does not override any method of parent class */
+        if (parentMethod == null) {
+            return;
+        }
+
+        /* Method m overrides method in parent class */
+        /* Check formal parameters and return type */
+        for (Enumeration<Formal> e = m.formals.getElements(), e2 = parentMethod.formals.getElements();
+             e.hasMoreElements() && e2.hasMoreElements();){
+
+            formalc childFormal = (formalc) e.nextElement();
+            formalc parentFormal = (formalc) e2.nextElement();
+            String childFormalType = childFormal.type_decl.toString();
+            String parentFormalType = parentFormal.type_decl.toString();
+            if (!childFormalType.equals(parentFormalType)) {
+                PrintStream error = classTable.semantError(childClass);
+                error.println("Type" + childFormalType + " of formal parameter"
+                            + childFormal.name.toString() + "in method " + methodName
+                            + "does not match type" + parentFormalType 
+                            + " of formal parameter of overriden method in parent class.");
+                break;
+            }
+        }
+        /* Check return type of overridden method */
+        String childReturnType = m.return_type.toString();
+        String parentReturnType = parentMethod.return_type.toString();
+        if (!childReturnType.equals(parentReturnType)) {
+            PrintStream error = classTable.semantError(childClass);
+            error.println("Return type" + childReturnType + "of method " + methodName
+                        + "does not match return type" + parentReturnType 
+                        + " of overriden method in parent class.");
+        }
     }
 
     /* Checks semantics for Main Class of program */
@@ -406,6 +606,63 @@ class programc extends Program {
                 }
             }
         }
+    }
+    private AbstractSymbol typeCheckExpression(ClassTable classTable, SymbolTable scopeTable, class_c childClass, Expression e) {
+        if (e instanceof assign) {
+
+        } else if (e instanceof static_dispatch) {
+
+        } else if (e instanceof dispatch) {
+            
+        } else if (e instanceof cond) {
+            
+        } else if (e instanceof loop) {
+            
+        } else if (e instanceof typcase) {
+            
+        } else if (e instanceof block) {
+            
+        } else if (e instanceof let) {
+            
+        } else if (e instanceof plus) {
+            
+        } else if (e instanceof sub) {
+            
+        } else if (e instanceof mul) {
+            
+        } else if (e instanceof divide) {
+            
+        } else if (e instanceof neg) {
+            
+        } else if (e instanceof lt) {
+            
+        } else if (e instanceof eq) {
+            
+        } else if (e instanceof leq) {
+            
+        } else if (e instanceof comp) {
+            
+        } else if (e instanceof int_const) {
+            e.set_type(TreeConstants.Int);
+            return TreeConstants.Int;
+        } else if (e instanceof bool_const) {
+            e.set_type(TreeConstants.Bool);
+            return TreeConstants.Bool;
+        } else if (e instanceof string_const) {
+            e.set_type(TreeConstants.Str);
+            return TreeConstants.Str;
+        } else if (e instanceof new_) {
+            
+        } else if (e instanceof isvoid) {
+            
+        } else if (e instanceof no_expr) { // nocheck
+            e.set_type(TreeConstants.No_type);
+            return TreeConstants.No_type;
+        } else if (e instanceof object) {
+            
+        }
+        
+        return TreeConstants.No_type;
     }
 
 }
