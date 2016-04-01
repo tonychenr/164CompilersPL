@@ -394,6 +394,10 @@ class programc extends Program {
                 } else {
                     method m = (method) currFeature;
                     HashMap<AbstractSymbol, method> classMethodTable = classTable.methodTable.get(childName);
+                    if (classMethodTable.containsKey(m.name)) {
+                        PrintStream error = classTable.semantError(childClass);
+                        error.println("Method " + m.name.toString() + " is multiple defined.");
+                    }
                     classMethodTable.put(m.name, m);
                 }
             }
@@ -469,8 +473,8 @@ class programc extends Program {
             if (!checkTypeInheritance(classTable, childClass, typeString, declaredType)) {
                 PrintStream error = classTable.semantError(childClass);
                 error.println("Initialization of type " + typeString
-                                + "does not inherit from declared type" + declaredType
-                                + "of attribute " + a.name.toString() + ".");
+                                + " does not inherit from declared type " + declaredType
+                                + " of attribute " + a.name.toString() + ".");
             }
         }
     }
@@ -685,12 +689,15 @@ class programc extends Program {
         String returnTypeString = returnType.toString();
         AbstractSymbol declaredType = (AbstractSymbol) scopeTable.lookup(e.name);
 
+        if (declaredType == null) {
+            return TreeConstants.Object_;
+        }
         /* Check if initialization type inherits from declared type of variable */
         if (!checkTypeInheritance(classTable, childClass, returnTypeString, declaredType.toString())) {
             PrintStream error = classTable.semantError(childClass);
             error.println("Initialization of type " + returnTypeString
-                            + "does not inherit from declared type" + declaredType.toString()
-                            + "of variable " + e.name.toString() + ".");
+                            + " does not inherit from declared type " + declaredType.toString()
+                            + " of variable " + e.name.toString() + ".");
             return TreeConstants.Object_;
         }
 
@@ -727,9 +734,9 @@ class programc extends Program {
             if (!checkTypeInheritance(classTable, childClass, actualTypeString, formalTypeString)) {
                 PrintStream error = classTable.semantError(childClass);
                 error.println("Initialization of type " + actualTypeString
-                                + "does not inherit from declared type" + formalTypeString
-                                + "of parameter " + formalParameter.name.toString() + "in method" + m.name.toString()
-                                + "of class" + e.type_name.toString() + ".");
+                                + " does not inherit from declared type " + formalTypeString
+                                + " of parameter " + formalParameter.name.toString() + " in method " + m.name.toString()
+                                + " of class " + e.type_name.toString() + ".");
                 returnType = TreeConstants.Object_;
             }
         }
@@ -815,7 +822,7 @@ class programc extends Program {
             if (!checkTypeInheritance(classTable, childClass, actualTypeString, formalTypeString)) {
                 PrintStream error = classTable.semantError(childClass);
                 error.println("Initialization of type " + actualTypeString
-                                + " does not inherit from declared type" + formalTypeString
+                                + " does not inherit from declared type " + formalTypeString
                                 + " of parameter " + formalParameter.name.toString() + " in method " + m.name.toString()
                                 + " of class " + e0Type.toString() + ".");
                 returnType = TreeConstants.Object_;
@@ -1125,7 +1132,7 @@ class programc extends Program {
         AbstractSymbol objectType = (AbstractSymbol) scopeTable.lookup(e.name);
         if (objectType == null) {
             PrintStream error = classTable.semantError(childClass);
-            error.println("Object" + e.name.toString() + " is not in current scope.");
+            error.println("Object " + e.name.toString() + " is not in current scope.");
             return TreeConstants.Object_;
         }
 
