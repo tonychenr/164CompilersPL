@@ -206,5 +206,23 @@ Instructions
 Write-up for PA4
 ----------------
 
+To check if the class hierarchy is valid:
+We implemented a Graph where each vertex can have one parent and many children.
+The graph is initialized with just the Object and IO classes. We then iterate
+through all the classes and add them to the graph. Then we do a second pass,
+adding parent and child pointers. If we encounter a parent that isn't in the
+graph during this second pass, we throw an error since it wasn't found in the
+first pass. Any class that doesn't have its parent explicitly defined is given
+the Object class as its parent. At the end, we check for cycles by checking if
+every vertex is reachable from Object by using BFS. If a vertex is not reachable
+from Object, then it must be part of a cycle.
 
+For type checking:
+For this we just followed the formulas given in the cool manual section 12.2
+to implement them exactly.
 
+Test case choices:
+We went through the list of cool type checking rules in section 12.2 of the
+cool manual for this. We added one test case for every good expression type
+usage in good.cl, and one test case for every misused type expression in
+bad.cl.
