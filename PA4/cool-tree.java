@@ -361,15 +361,15 @@ class programc extends Program {
             if (parentName.equals(TreeConstants.Int.toString())) {
                 noErrors = false;
                 error = classTable.semantError(childClass);
-                error.println("Class " + parentName + " may not inherit from basic class Int.");
+                error.println("Class " + childName + " may not inherit from basic class Int.");
             } else if (parentName.equals(TreeConstants.Str.toString())) {
                 noErrors = false;
                 error = classTable.semantError(childClass);
-                error.println("Class " + parentName + " may not inherit from basic class String.");
+                error.println("Class " + childName + " may not inherit from basic class String.");
             } else if (parentName.equals(TreeConstants.Bool.toString())) {
                 noErrors = false;
                 error = classTable.semantError(childClass);
-                error.println("Class " + parentName + " may not inherit from basic class Bool.");
+                error.println("Class " + childName + " may not inherit from basic class Bool.");
             }
         }
 
@@ -481,6 +481,10 @@ class programc extends Program {
         AbstractSymbol returnTypeSymbol = typeCheckExpression(classTable, scopeTable, childClass, m.expr);
         String returnTypeString = returnTypeSymbol.toString();
         String declaredReturnType = m.return_type.toString();
+        if (!classTable.inheritanceGraph.s2v.containsKey(declaredReturnType) && !declaredReturnType.equals(TreeConstants.SELF_TYPE.toString())) {
+            PrintStream error = classTable.semantError(childClass);
+            error.println("Undefined return type " + declaredReturnType + " in method " + m.name.toString() + ".");
+        }
         if (!checkTypeInheritance(classTable, childClass, returnTypeString, declaredReturnType)) {
             PrintStream error = classTable.semantError(childClass);
             error.println("Return object type " + returnTypeString
@@ -535,9 +539,13 @@ class programc extends Program {
         for (Enumeration<Formal> e = m.formals.getElements(); e.hasMoreElements();){
             formalc f = (formalc) e.nextElement();
             String formalName = f.name.toString();
+            if (f.type_decl.toString().equals(TreeConstants.SELF_TYPE.toString())) {
+                PrintStream error = classTable.semantError(childClass);
+                error.println("Formal parameter " + formalName + " cannot have type TreeConstants.SELF_TYPE.");
+            }
             if (formals.contains(formalName)) {
                 PrintStream error = classTable.semantError(childClass);
-                error.println("Formal parameter" + formalName + "multiple defined.");
+                error.println("Formal parameter " + formalName + " is multiple defined.");
             } else {
                 formals.add(formalName);
             }
@@ -730,8 +738,8 @@ class programc extends Program {
         if (f.hasMoreElements() || a.hasMoreElements()) {
             PrintStream error = classTable.semantError(childClass);
             error.println("Number of arguments to method " + m.name.toString()
-                            + "in class " + e.type_name.toString()
-                            + "does not match given number of arguments.");
+                            + " in class " + e.type_name.toString()
+                            + " does not match given number of arguments.");
             return TreeConstants.Object_;
         }
 
@@ -745,12 +753,12 @@ class programc extends Program {
         if (!checkTypeInheritance(classTable, childClass, e0TypeString, e.type_name.toString())) {
             PrintStream error = classTable.semantError(childClass);
             error.println("Type" + e0TypeString + " of static function dispatch "
-                            + "does not inherit from class" + e.type_name.toString()
-                            + "containing method " + m.name.toString() + ".");
+                            + "does not inherit from class " + e.type_name.toString()
+                            + " containing method " + m.name.toString() + ".");
             return TreeConstants.Object_;
         }
 
-        if (m.return_type.toString().equals(TreeConstants.SELF_TYPE)) {
+        if (m.return_type.toString().equals(TreeConstants.SELF_TYPE.toString())) {
             returnType = e0Type;
         } else {
             returnType = m.return_type;
@@ -770,10 +778,28 @@ class programc extends Program {
             actualTypes.add(typeCheckExpression(classTable, scopeTable, childClass, expression));
         }
 
-        method m = classTable.methodTable.get(e0Type.toString()).get(e.name);
+        String methodClassName;
+        if (e0Type.toString().equals(TreeConstants.SELF_TYPE.toString())) {
+            methodClassName = childClass.getName().toString();
+        } else {
+            methodClassName = e0Type.toString();
+        }
+        method m = null;
+        for (Vertex v = classTable.inheritanceGraph.s2v.get(methodClassName); v != null; v = v.parent) {
+            String parentName = v.toString();
+            HashMap<AbstractSymbol, method> parentMethodTable = classTable.methodTable.get(parentName);
+            if (parentMethodTable == null) {
+                continue;
+            }
+            if (parentMethodTable.containsKey(e.name)) {
+                m = parentMethodTable.get(e.name);
+                break;
+            }
+        }
+
         if (m == null) {
             PrintStream error = classTable.semantError(childClass);
-            error.println("Method " + e.name.toString() + "of class " + e0Type.toString() + "not defined.");
+            error.println("Method " + e.name.toString() + " of class " + e0Type.toString() + " not defined.");
             return TreeConstants.Object_;
         }
 
@@ -789,9 +815,9 @@ class programc extends Program {
             if (!checkTypeInheritance(classTable, childClass, actualTypeString, formalTypeString)) {
                 PrintStream error = classTable.semantError(childClass);
                 error.println("Initialization of type " + actualTypeString
-                                + "does not inherit from declared type" + formalTypeString
-                                + "of parameter " + formalParameter.name.toString() + "in method" + m.name.toString()
-                                + "of class" + e0Type.toString() + ".");
+                                + " does not inherit from declared type" + formalTypeString
+                                + " of parameter " + formalParameter.name.toString() + " in method " + m.name.toString()
+                                + " of class " + e0Type.toString() + ".");
                 returnType = TreeConstants.Object_;
             }
         }
@@ -800,8 +826,8 @@ class programc extends Program {
         if (f.hasMoreElements() || a.hasMoreElements()) {
             PrintStream error = classTable.semantError(childClass);
             error.println("Number of arguments to method " + m.name.toString()
-                            + "in class " + e0Type.toString()
-                            + "does not match given number of arguments.");
+                            + " in class " + e0Type.toString()
+                            + " does not match given number of arguments.");
             return TreeConstants.Object_;
         }
 
@@ -810,7 +836,7 @@ class programc extends Program {
             return returnType;
         }
 
-        if (m.return_type.toString().equals(TreeConstants.SELF_TYPE)) {
+        if (m.return_type.toString().equals(TreeConstants.SELF_TYPE.toString())) {
             returnType = e0Type;
         } else {
             returnType = m.return_type;

@@ -23,6 +23,7 @@ PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 
 import java.io.PrintStream;
 import java.util.HashMap;
+import java.util.Enumeration;
 
 /** This class may be used to contain the semantic information such as
  * the inheritance graph.  You may use it or not as you like: it is only
@@ -205,16 +206,39 @@ class ClassTable {
         inheritanceGraph.addEdge(TreeConstants.Object_.toString(), TreeConstants.Str.toString());
         inheritanceGraph.addEdge(TreeConstants.Object_.toString(), TreeConstants.Bool.toString());
         inheritanceGraph.addEdge(TreeConstants.Object_.toString(), TreeConstants.IO.toString());
+
+        fillBasicClassFeatures(Object_class);
+        fillBasicClassFeatures(IO_class);
+        fillBasicClassFeatures(Int_class);
+        fillBasicClassFeatures(Bool_class);
+        fillBasicClassFeatures(Str_class);
 	// NOT TO BE INCLUDED IN SKELETON
 	
-	Object_class.dump_with_types(System.err, 0);
-	IO_class.dump_with_types(System.err, 0);
-	Int_class.dump_with_types(System.err, 0);
-	Bool_class.dump_with_types(System.err, 0);
-	Str_class.dump_with_types(System.err, 0);
+	// Object_class.dump_with_types(System.err, 0);
+	// IO_class.dump_with_types(System.err, 0);
+	// Int_class.dump_with_types(System.err, 0);
+	// Bool_class.dump_with_types(System.err, 0);
+	// Str_class.dump_with_types(System.err, 0);
     }
 	
-
+    private void fillBasicClassFeatures(class_c basicClass) {
+        String className = basicClass.getName().toString();
+        Features features = basicClass.getFeatures();
+        attributeTable.put(className, new HashMap<AbstractSymbol, AbstractSymbol>());
+        methodTable.put(className, new HashMap<AbstractSymbol, method>());
+        for (Enumeration<Feature> f = features.getElements(); f.hasMoreElements();){
+            Feature currFeature = f.nextElement();
+            if(currFeature instanceof attr){
+                attr a = (attr) currFeature;
+                HashMap<AbstractSymbol, AbstractSymbol> classAttributeTable = attributeTable.get(className);
+                classAttributeTable.put(a.name, a.type_decl);
+            } else {
+                method m = (method) currFeature;
+                HashMap<AbstractSymbol, method> classMethodTable = methodTable.get(className);
+                classMethodTable.put(m.name, m);
+            }
+        }
+    }
 
     public ClassTable(Classes cls) {
     	semantErrors = 0;
