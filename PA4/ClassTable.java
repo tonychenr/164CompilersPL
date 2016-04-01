@@ -33,7 +33,7 @@ class ClassTable {
     public Graph inheritanceGraph;
 
     /* HashMap<Class Name, HashMap<Attribute Name, Attribute Type>> */
-    public HashMap<String, HashMap<AbstractSymbol, String>> attributeTable;
+    public HashMap<String, HashMap<AbstractSymbol, AbstractSymbol>> attributeTable;
     /* HashMap<Class Name, HashMap<Method Name, method>> */
     public HashMap<String, HashMap<AbstractSymbol, method>> methodTable;
 
@@ -221,7 +221,7 @@ class ClassTable {
     	errorStream = System.err;
     	
     	/* fill this in */
-        attributeTable = new HashMap<String, HashMap<AbstractSymbol, String>>();
+        attributeTable = new HashMap<String, HashMap<AbstractSymbol, AbstractSymbol>>();
         methodTable = new HashMap<String, HashMap<AbstractSymbol, method>>();
     	inheritanceGraph = new Graph();
         installBasicClassesToGraph();

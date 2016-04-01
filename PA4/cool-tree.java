@@ -383,14 +383,14 @@ class programc extends Program {
             childClass = (class_c) e.nextElement();
             childName = childClass.getName().toString();
             Features features = childClass.getFeatures();
-            classTable.attributeTable.put(childName, new HashMap<AbstractSymbol, String>());
+            classTable.attributeTable.put(childName, new HashMap<AbstractSymbol, AbstractSymbol>());
             classTable.methodTable.put(childName, new HashMap<AbstractSymbol, method>());
             for (Enumeration<Feature> f = features.getElements(); f.hasMoreElements();){
                 Feature currFeature = f.nextElement();
                 if(currFeature instanceof attr){
                     attr a = (attr) currFeature;
-                    HashMap<AbstractSymbol, String> classAttributeTable = classTable.attributeTable.get(childName);
-                    classAttributeTable.put(a.name, a.type_decl.toString());
+                    HashMap<AbstractSymbol, AbstractSymbol> classAttributeTable = classTable.attributeTable.get(childName);
+                    classAttributeTable.put(a.name, a.type_decl);
                 } else {
                     method m = (method) currFeature;
                     HashMap<AbstractSymbol, method> classMethodTable = classTable.methodTable.get(childName);
@@ -446,16 +446,19 @@ class programc extends Program {
     private void fillClassScope(ClassTable classTable, SymbolTable scopeTable, String childName) {
         scopeTable.enterScope();
         for (Vertex v = classTable.inheritanceGraph.s2v.get(childName); v != null; v = v.parent) {
-            HashMap<AbstractSymbol, String> classAttributes = classTable.attributeTable.get(childName);
+            HashMap<AbstractSymbol, AbstractSymbol> classAttributes = classTable.attributeTable.get(v.toString());
+            if (classAttributes == null) {
+                continue;
+            }
             for (AbstractSymbol attrName : classAttributes.keySet()) {
                 if (scopeTable.lookup(attrName) != null) {
                     PrintStream error = classTable.semantError();
-                    error.println("Attribute" + attrName.toString() + " in Class" + childName + " already defined in parent class");
+                    error.println("Attribute " + attrName.toString() + " in Class " + childName + " already defined in parent class");
                 }
                 scopeTable.addId(attrName, classAttributes.get(attrName));
             }
         }
-        scopeTable.addId(TreeConstants.self, TreeConstants.SELF_TYPE.toString());
+        scopeTable.addId(TreeConstants.self, TreeConstants.SELF_TYPE);
     }
 
     private void checkAttribute(ClassTable classTable, SymbolTable scopeTable, class_c childClass, attr a) {
@@ -481,8 +484,8 @@ class programc extends Program {
         if (!checkTypeInheritance(classTable, childClass, returnTypeString, declaredReturnType)) {
             PrintStream error = classTable.semantError(childClass);
             error.println("Return object type " + returnTypeString
-                            + "does not match or inherit from declared return type" + declaredReturnType
-                            + "of method " + m.name.toString() + ".");
+                            + " does not match or inherit from declared return type " + declaredReturnType
+                            + " of method " + m.name.toString() + ".");
         }
 
         /* Check for multiple defined formal method parameters */
@@ -498,7 +501,7 @@ class programc extends Program {
         scopeTable.enterScope();
         for (Enumeration<Formal> e = m.formals.getElements(); e.hasMoreElements();){
             formalc f = (formalc) e.nextElement();
-            scopeTable.addId(f.name, f.type_decl.toString());
+            scopeTable.addId(f.name, f.type_decl);
         }
     }
 
@@ -510,15 +513,15 @@ class programc extends Program {
             String selfTypeString = TreeConstants.SELF_TYPE.toString();
             if (parentType.equals(selfTypeString) && !childType.equals(selfTypeString)){
                 return false;
-            } else if(childType == selfTypeString){
+            } else if(childType.equals(selfTypeString)){
                 childType = childClass.getName().toString();
             }
         }
         
         /* Check if childType inherits from parentType */
         boolean inherits = false;
-        for (Vertex v = classTable.inheritanceGraph.s2v.get(childType).parent; v != null; v = v.parent) {
-            if (v.myClass.getName().toString().equals(parentType)) {
+        for (Vertex v = classTable.inheritanceGraph.s2v.get(childType); v != null; v = v.parent) {
+            if (v.toString().equals(parentType)) {
                 inherits = true;
                 break;
             }
@@ -547,8 +550,11 @@ class programc extends Program {
         String childName = childClass.getName().toString();
         AbstractSymbol methodName = m.name;
         for (Vertex v = classTable.inheritanceGraph.s2v.get(childName).parent; v != null; v = v.parent) {
-            String parentName = v.myClass.getName().toString();
+            String parentName = v.toString();
             HashMap<AbstractSymbol, method> parentMethodTable = classTable.methodTable.get(parentName);
+            if (parentMethodTable == null) {
+                continue;
+            }
             if (parentMethodTable.containsKey(methodName)) {
                 parentMethod = parentMethodTable.get(methodName);
                 break;
@@ -611,37 +617,37 @@ class programc extends Program {
         if (e instanceof assign) {
             return typeCheckAssignExpression(classTable, scopeTable, childClass, (assign) e);
         } else if (e instanceof static_dispatch) {
-
+            return typeCheckStaticDispatchExpression(classTable, scopeTable, childClass, (static_dispatch) e);
         } else if (e instanceof dispatch) {
-            
+            return typeCheckDispatchExpression(classTable, scopeTable, childClass, (dispatch) e);
         } else if (e instanceof cond) {
-            
+            return typeCheckCondExpression(classTable, scopeTable, childClass, (cond) e);
         } else if (e instanceof loop) {
-            
+            return typeCheckLoopExpression(classTable, scopeTable, childClass, (loop) e);
         } else if (e instanceof typcase) {
-            
+            return typeCheckTypcaseExpression(classTable, scopeTable, childClass, (typcase) e);
         } else if (e instanceof block) {
-            
+            return typeCheckBlockExpression(classTable, scopeTable, childClass, (block) e);
         } else if (e instanceof let) {
-            
+            return typeCheckLetExpression(classTable, scopeTable, childClass, (let) e);
         } else if (e instanceof plus) {
-            
+            return typeCheckPlusExpression(classTable, scopeTable, childClass, (plus) e);
         } else if (e instanceof sub) {
-            
+            return typeCheckSubExpression(classTable, scopeTable, childClass, (sub) e);
         } else if (e instanceof mul) {
-            
+            return typeCheckMulExpression(classTable, scopeTable, childClass, (mul) e);
         } else if (e instanceof divide) {
-            
+            return typeCheckDivideExpression(classTable, scopeTable, childClass, (divide) e);
         } else if (e instanceof neg) {
-            
+            return typeCheckNegExpression(classTable, scopeTable, childClass, (neg) e);
         } else if (e instanceof lt) {
-            
+            return typeCheckLtExpression(classTable, scopeTable, childClass, (lt) e);
         } else if (e instanceof eq) {
-            
+            return typeCheckEqExpression(classTable, scopeTable, childClass, (eq) e);
         } else if (e instanceof leq) {
-            
+            return typeCheckLeqExpression(classTable, scopeTable, childClass, (leq) e);
         } else if (e instanceof comp) {
-            
+            return typeCheckCompExpression(classTable, scopeTable, childClass, (comp) e);
         } else if (e instanceof int_const) {
             e.set_type(TreeConstants.Int);
             return TreeConstants.Int;
@@ -652,14 +658,14 @@ class programc extends Program {
             e.set_type(TreeConstants.Str);
             return TreeConstants.Str;
         } else if (e instanceof new_) {
-            
+            return typeCheckNewExpression(classTable, scopeTable, childClass, (new_) e);
         } else if (e instanceof isvoid) {
-            
+            return typeCheckIsVoidExpression(classTable, scopeTable, childClass, (isvoid) e);
         } else if (e instanceof no_expr) { // nocheck
             e.set_type(TreeConstants.No_type);
             return TreeConstants.No_type;
         } else if (e instanceof object) {
-            
+            return typeCheckObjectExpression(classTable, scopeTable, childClass, (object) e);
         }
 
         return TreeConstants.No_type;
@@ -669,18 +675,468 @@ class programc extends Program {
     private AbstractSymbol typeCheckAssignExpression(ClassTable classTable, SymbolTable scopeTable, class_c childClass, assign e) {
         AbstractSymbol returnType = typeCheckExpression(classTable, scopeTable, childClass, e.expr);
         String returnTypeString = returnType.toString();
-        String declaredType = (String) scopeTable.lookup(e.name);
-        e.set_type(returnType);
+        AbstractSymbol declaredType = (AbstractSymbol) scopeTable.lookup(e.name);
 
         /* Check if initialization type inherits from declared type of variable */
-        if (!checkTypeInheritance(classTable, childClass, returnTypeString, declaredType)) {
+        if (!checkTypeInheritance(classTable, childClass, returnTypeString, declaredType.toString())) {
             PrintStream error = classTable.semantError(childClass);
             error.println("Initialization of type " + returnTypeString
-                            + "does not inherit from declared type" + declaredType
+                            + "does not inherit from declared type" + declaredType.toString()
                             + "of variable " + e.name.toString() + ".");
-            returnType = TreeConstants.Object_;
+            return TreeConstants.Object_;
         }
+
+        e.set_type(returnType);
         return returnType;
+    }
+
+    private AbstractSymbol typeCheckStaticDispatchExpression(ClassTable classTable, SymbolTable scopeTable, class_c childClass, static_dispatch e) {
+        AbstractSymbol e0Type = typeCheckExpression(classTable, scopeTable, childClass, e.expr);
+        Vector<AbstractSymbol> actualTypes = new Vector<AbstractSymbol>();
+
+        /* Get types of actuals and typecheck actuals */
+        for (Enumeration<Expression> exprs = e.actual.getElements(); exprs.hasMoreElements();) {
+            Expression expression = (Expression) exprs.nextElement();
+            actualTypes.add(typeCheckExpression(classTable, scopeTable, childClass, expression));
+        }
+
+        method m = classTable.methodTable.get(e.type_name.toString()).get(e.name);
+        if (m == null) {
+            PrintStream error = classTable.semantError(childClass);
+            error.println("Method " + e.name.toString() + "of class " + e.type_name.toString() + "not defined.");
+            return TreeConstants.Object_;
+        }
+
+        Enumeration<AbstractSymbol> a = actualTypes.elements();
+        Enumeration<Formal> f = m.formals.getElements();
+        AbstractSymbol returnType = null;
+        while (f.hasMoreElements() && a.hasMoreElements()) {
+            formalc formalParameter = (formalc) f.nextElement();
+            AbstractSymbol formalType = formalParameter.type_decl;
+            AbstractSymbol actualType = (AbstractSymbol) a.nextElement();
+            String formalTypeString = formalType.toString();
+            String actualTypeString = actualType.toString();
+            if (!checkTypeInheritance(classTable, childClass, actualTypeString, formalTypeString)) {
+                PrintStream error = classTable.semantError(childClass);
+                error.println("Initialization of type " + actualTypeString
+                                + "does not inherit from declared type" + formalTypeString
+                                + "of parameter " + formalParameter.name.toString() + "in method" + m.name.toString()
+                                + "of class" + e.type_name.toString() + ".");
+                returnType = TreeConstants.Object_;
+            }
+        }
+
+        /* Check of number of actual arguments match method formal arguments */
+        if (f.hasMoreElements() || a.hasMoreElements()) {
+            PrintStream error = classTable.semantError(childClass);
+            error.println("Number of arguments to method " + m.name.toString()
+                            + "in class " + e.type_name.toString()
+                            + "does not match given number of arguments.");
+            return TreeConstants.Object_;
+        }
+
+        /* Actual argument type did not match method formal argument type */
+        if (returnType != null) {
+            return returnType;
+        }
+
+        /* Check if e0 class inherits from class of static dispatch */
+        String e0TypeString = e0Type.toString();
+        if (!checkTypeInheritance(classTable, childClass, e0TypeString, e.type_name.toString())) {
+            PrintStream error = classTable.semantError(childClass);
+            error.println("Type" + e0TypeString + " of static function dispatch "
+                            + "does not inherit from class" + e.type_name.toString()
+                            + "containing method " + m.name.toString() + ".");
+            return TreeConstants.Object_;
+        }
+
+        if (m.return_type.toString().equals(TreeConstants.SELF_TYPE)) {
+            returnType = e0Type;
+        } else {
+            returnType = m.return_type;
+        }
+
+        e.set_type(returnType);
+        return returnType;
+    }
+
+    private AbstractSymbol typeCheckDispatchExpression(ClassTable classTable, SymbolTable scopeTable, class_c childClass, dispatch e) {
+        AbstractSymbol e0Type = typeCheckExpression(classTable, scopeTable, childClass, e.expr);
+        Vector<AbstractSymbol> actualTypes = new Vector<AbstractSymbol>();
+
+        /* Get types of actuals and typecheck actuals */
+        for (Enumeration<Expression> exprs = e.actual.getElements(); exprs.hasMoreElements();) {
+            Expression expression = (Expression) exprs.nextElement();
+            actualTypes.add(typeCheckExpression(classTable, scopeTable, childClass, expression));
+        }
+
+        method m = classTable.methodTable.get(e0Type.toString()).get(e.name);
+        if (m == null) {
+            PrintStream error = classTable.semantError(childClass);
+            error.println("Method " + e.name.toString() + "of class " + e0Type.toString() + "not defined.");
+            return TreeConstants.Object_;
+        }
+
+        Enumeration<AbstractSymbol> a = actualTypes.elements();
+        Enumeration<Formal> f = m.formals.getElements();
+        AbstractSymbol returnType = null;
+        while (f.hasMoreElements() && a.hasMoreElements()) {
+            formalc formalParameter = (formalc) f.nextElement();
+            AbstractSymbol formalType = formalParameter.type_decl;
+            AbstractSymbol actualType = (AbstractSymbol) a.nextElement();
+            String formalTypeString = formalType.toString();
+            String actualTypeString = actualType.toString();
+            if (!checkTypeInheritance(classTable, childClass, actualTypeString, formalTypeString)) {
+                PrintStream error = classTable.semantError(childClass);
+                error.println("Initialization of type " + actualTypeString
+                                + "does not inherit from declared type" + formalTypeString
+                                + "of parameter " + formalParameter.name.toString() + "in method" + m.name.toString()
+                                + "of class" + e0Type.toString() + ".");
+                returnType = TreeConstants.Object_;
+            }
+        }
+
+        /* Check of number of actual arguments match method formal arguments */
+        if (f.hasMoreElements() || a.hasMoreElements()) {
+            PrintStream error = classTable.semantError(childClass);
+            error.println("Number of arguments to method " + m.name.toString()
+                            + "in class " + e0Type.toString()
+                            + "does not match given number of arguments.");
+            return TreeConstants.Object_;
+        }
+
+        /* Actual argument type did not match method formal argument type */
+        if (returnType != null) {
+            return returnType;
+        }
+
+        if (m.return_type.toString().equals(TreeConstants.SELF_TYPE)) {
+            returnType = e0Type;
+        } else {
+            returnType = m.return_type;
+        }
+
+        e.set_type(returnType);
+        return returnType;
+    }
+
+    private AbstractSymbol typeCheckPlusExpression(ClassTable classTable, SymbolTable scopeTable, class_c childClass, plus e) {
+        AbstractSymbol e1Type = typeCheckExpression(classTable, scopeTable, childClass, e.e1);
+        AbstractSymbol e2Type = typeCheckExpression(classTable, scopeTable, childClass, e.e2);
+        String e1TypeString = e1Type.toString();
+        String e2TypeString = e2Type.toString();
+        String intTypeString = TreeConstants.Int.toString();
+        if (!e1TypeString.equals(intTypeString) || !e2TypeString.equals(intTypeString) ) {
+            PrintStream error = classTable.semantError(childClass);
+            error.println("Argument of plus expression is not of type Int.");
+            return TreeConstants.Object_;
+        }
+
+        e.set_type(TreeConstants.Int);
+        return TreeConstants.Int;
+    }
+    private AbstractSymbol typeCheckSubExpression(ClassTable classTable, SymbolTable scopeTable, class_c childClass, sub e) {
+        AbstractSymbol e1Type = typeCheckExpression(classTable, scopeTable, childClass, e.e1);
+        AbstractSymbol e2Type = typeCheckExpression(classTable, scopeTable, childClass, e.e2);
+        String e1TypeString = e1Type.toString();
+        String e2TypeString = e2Type.toString();
+        String intTypeString = TreeConstants.Int.toString();
+        if (!e1TypeString.equals(intTypeString) || !e2TypeString.equals(intTypeString) ) {
+            PrintStream error = classTable.semantError(childClass);
+            error.println("Argument of sub expression is not of type Int.");
+            return TreeConstants.Object_;
+        }
+
+        e.set_type(TreeConstants.Int);
+        return TreeConstants.Int;
+    }
+    private AbstractSymbol typeCheckMulExpression(ClassTable classTable, SymbolTable scopeTable, class_c childClass, mul e) {
+        AbstractSymbol e1Type = typeCheckExpression(classTable, scopeTable, childClass, e.e1);
+        AbstractSymbol e2Type = typeCheckExpression(classTable, scopeTable, childClass, e.e2);
+        String e1TypeString = e1Type.toString();
+        String e2TypeString = e2Type.toString();
+        String intTypeString = TreeConstants.Int.toString();
+        if (!e1TypeString.equals(intTypeString) || !e2TypeString.equals(intTypeString) ) {
+            PrintStream error = classTable.semantError(childClass);
+            error.println("Argument of mul expression is not of type Int.");
+            return TreeConstants.Object_;
+        }
+
+        e.set_type(TreeConstants.Int);
+        return TreeConstants.Int;
+    }
+
+    private AbstractSymbol typeCheckDivideExpression(ClassTable classTable, SymbolTable scopeTable, class_c childClass, divide e) {
+        AbstractSymbol e1Type = typeCheckExpression(classTable, scopeTable, childClass, e.e1);
+        AbstractSymbol e2Type = typeCheckExpression(classTable, scopeTable, childClass, e.e2);
+        String e1TypeString = e1Type.toString();
+        String e2TypeString = e2Type.toString();
+        String intTypeString = TreeConstants.Int.toString();
+        
+        if (!e1TypeString.equals(intTypeString) || !e2TypeString.equals(intTypeString) ) {
+            PrintStream error = classTable.semantError(childClass);
+            error.println("Argument of divide expression is not of type Int.");
+            return TreeConstants.Object_;
+        }
+
+        e.set_type(TreeConstants.Int);
+        return TreeConstants.Int;
+    }
+
+    private AbstractSymbol typeCheckEqExpression(ClassTable classTable, SymbolTable scopeTable, class_c childClass, eq e) {
+        AbstractSymbol e1Type = typeCheckExpression(classTable, scopeTable, childClass, e.e1);
+        AbstractSymbol e2Type = typeCheckExpression(classTable, scopeTable, childClass, e.e2);
+        String e1TypeString = e1Type.toString();
+        String e2TypeString = e2Type.toString();
+        String intTypeString = TreeConstants.Int.toString();
+        String boolTypeString = TreeConstants.Bool.toString();
+        String stringTypeString = TreeConstants.Str.toString();
+        if ((e1TypeString.equals(intTypeString) || e2TypeString.equals(intTypeString)
+            || e1TypeString.equals(boolTypeString) || e2TypeString.equals(boolTypeString)
+            || e1TypeString.equals(stringTypeString) ||e2TypeString.equals(stringTypeString))
+            && !e1TypeString.equals(e2TypeString)) {
+            PrintStream error = classTable.semantError(childClass);
+            error.println("Type " + e1TypeString + " cannot be compared to type " + e2TypeString + ".");
+            return TreeConstants.Object_;
+        }
+
+        e.set_type(TreeConstants.Bool);
+        return TreeConstants.Bool;
+    }
+
+    private AbstractSymbol typeCheckNegExpression(ClassTable classTable, SymbolTable scopeTable, class_c childClass, neg e) {
+        AbstractSymbol e1Type = typeCheckExpression(classTable, scopeTable, childClass, e.e1);
+        String e1TypeString = e1Type.toString();
+        String intTypeString = TreeConstants.Int.toString();
+        
+        if (!e1TypeString.equals(intTypeString)) {
+            PrintStream error = classTable.semantError(childClass);
+            error.println("Argument of neg expression is not of type Int.");
+            return TreeConstants.Object_;
+        }
+
+        e.set_type(TreeConstants.Int);
+        return TreeConstants.Int;
+    }
+
+    private AbstractSymbol typeCheckLtExpression(ClassTable classTable, SymbolTable scopeTable, class_c childClass, lt e) {
+        AbstractSymbol e1Type = typeCheckExpression(classTable, scopeTable, childClass, e.e1);
+        AbstractSymbol e2Type = typeCheckExpression(classTable, scopeTable, childClass, e.e2);
+        String e1TypeString = e1Type.toString();
+        String e2TypeString = e2Type.toString();
+        String intTypeString = TreeConstants.Int.toString();
+        
+        if (!e1TypeString.equals(intTypeString) || !e2TypeString.equals(intTypeString) ) {
+            PrintStream error = classTable.semantError(childClass);
+            error.println("Argument of lt expression is not of type Int.");
+            return TreeConstants.Object_;
+        }
+
+        e.set_type(TreeConstants.Bool);
+        return TreeConstants.Bool;
+    }
+
+    private AbstractSymbol typeCheckLeqExpression(ClassTable classTable, SymbolTable scopeTable, class_c childClass, leq e) {
+        AbstractSymbol e1Type = typeCheckExpression(classTable, scopeTable, childClass, e.e1);
+        AbstractSymbol e2Type = typeCheckExpression(classTable, scopeTable, childClass, e.e2);
+        String e1TypeString = e1Type.toString();
+        String e2TypeString = e2Type.toString();
+        String intTypeString = TreeConstants.Int.toString();
+        
+        if (!e1TypeString.equals(intTypeString) || !e2TypeString.equals(intTypeString) ) {
+            PrintStream error = classTable.semantError(childClass);
+            error.println("Argument of leq expression is not of type Int.");
+            return TreeConstants.Object_;
+        }
+
+        e.set_type(TreeConstants.Bool);
+        return TreeConstants.Bool;
+    }
+
+    private AbstractSymbol typeCheckCompExpression(ClassTable classTable, SymbolTable scopeTable, class_c childClass, comp e) {
+        AbstractSymbol e1Type = typeCheckExpression(classTable, scopeTable, childClass, e.e1);
+        String e1TypeString = e1Type.toString();
+        String boolTypeString = TreeConstants.Bool.toString();
+        
+        if (!e1TypeString.equals(boolTypeString)) {
+            PrintStream error = classTable.semantError(childClass);
+            error.println("Argument of not expression is not of type Bool.");
+            return TreeConstants.Object_;
+        }
+
+        e.set_type(TreeConstants.Bool);
+        return TreeConstants.Bool;
+    }
+
+    private AbstractSymbol typeCheckCondExpression(ClassTable classTable, SymbolTable scopeTable, class_c childClass, cond e) {
+        AbstractSymbol predType = typeCheckExpression(classTable, scopeTable, childClass, e.pred);
+        String predTypeString = predType.toString();
+        String boolTypeString = TreeConstants.Bool.toString();
+        String thenTypeString = typeCheckExpression(classTable, scopeTable, childClass, e.then_exp).toString();
+        String elseTypeString = typeCheckExpression(classTable, scopeTable, childClass, e.else_exp).toString();
+        if (!predTypeString.equals(boolTypeString)) {
+            PrintStream error = classTable.semantError(childClass);
+            error.println("Predicate of loop expression is not of type Bool.");
+            return TreeConstants.Object_;
+        }
+
+        AbstractSymbol returnType = getCommonAncestor(classTable, thenTypeString, elseTypeString);
+        e.set_type(returnType);
+        return returnType;
+    }
+
+    private AbstractSymbol typeCheckTypcaseExpression(ClassTable classTable, SymbolTable scopeTable, class_c childClass, typcase e) {
+        typeCheckExpression(classTable, scopeTable, childClass, e.expr);
+
+        AbstractSymbol leastCommonAncestor = null;
+        for (Enumeration<branch> exprs = e.cases.getElements(); exprs.hasMoreElements();) {
+            branch b = (branch) exprs.nextElement();
+            scopeTable.enterScope();
+            scopeTable.addId(b.name, b.type_decl);
+            AbstractSymbol branchType = typeCheckExpression(classTable, scopeTable, childClass, b.expr);
+            scopeTable.exitScope();
+
+            if (leastCommonAncestor == null) {
+                leastCommonAncestor = branchType;
+            }
+            leastCommonAncestor = getCommonAncestor(classTable, leastCommonAncestor.toString(), branchType.toString());
+        }
+
+        if (leastCommonAncestor == null) {
+            PrintStream error = classTable.semantError(childClass);
+            error.println("Case expression must contain at least one case.");
+            return TreeConstants.Object_;
+        }
+
+        e.set_type(leastCommonAncestor);
+        return leastCommonAncestor;
+    }
+
+    private AbstractSymbol typeCheckLetExpression(ClassTable classTable, SymbolTable scopeTable, class_c childClass, let e) {
+        AbstractSymbol identifierType = e.type_decl;
+        if (e.type_decl.toString().equals(TreeConstants.SELF_TYPE.toString())) {
+            identifierType = childClass.getName();
+        }
+        if (!(e.init instanceof no_expr)) {
+            AbstractSymbol initType = typeCheckExpression(classTable, scopeTable, childClass, e.init);
+            String initTypeString = initType.toString();
+            String initDeclaredType = identifierType.toString();
+            if (!checkTypeInheritance(classTable, childClass, initTypeString, initDeclaredType)) {
+                PrintStream error = classTable.semantError(childClass);
+                error.println("Initialization of type " + initTypeString
+                                + "does not inherit from declared type" + initDeclaredType
+                                + "of variable " + e.identifier.toString() + " in let expression.");
+            }
+        }
+
+        scopeTable.enterScope();
+        scopeTable.addId(e.identifier, identifierType);
+        AbstractSymbol bodyType = typeCheckExpression(classTable, scopeTable, childClass, e.body);
+        scopeTable.exitScope();
+
+        e.set_type(bodyType);
+        return bodyType;
+    }
+
+    private AbstractSymbol typeCheckLoopExpression(ClassTable classTable, SymbolTable scopeTable, class_c childClass, loop e) {
+        AbstractSymbol predType = typeCheckExpression(classTable, scopeTable, childClass, e.pred);
+        String predTypeString = predType.toString();
+        String boolTypeString = TreeConstants.Bool.toString();
+        typeCheckExpression(classTable, scopeTable, childClass, e.body);
+        if (!predTypeString.equals(boolTypeString)) {
+            PrintStream error = classTable.semantError(childClass);
+            error.println("Predicate of loop expression is not of type Bool.");
+            return TreeConstants.Object_;
+        }
+
+        e.set_type(TreeConstants.Object_);
+        return TreeConstants.Object_;
+    }
+
+    private AbstractSymbol typeCheckBlockExpression(ClassTable classTable, SymbolTable scopeTable, class_c childClass, block e) {
+        AbstractSymbol returnType = null;
+        for (Enumeration exprs = e.body.getElements(); exprs.hasMoreElements();) {
+            Expression exp = (Expression) exprs.nextElement();
+            returnType = typeCheckExpression(classTable, scopeTable, childClass, exp);
+        }
+
+        if (returnType == null) {
+            PrintStream error = classTable.semantError(childClass);
+            error.println("Block expression must contain at least one expression.");
+            return TreeConstants.Object_;
+        }
+
+        e.set_type(returnType);
+        return returnType;
+    }
+
+    private AbstractSymbol typeCheckNewExpression(ClassTable classTable, SymbolTable scopeTable, class_c childClass, new_ e) {
+        AbstractSymbol typeName = e.type_name;
+
+        if (!classTable.inheritanceGraph.s2v.containsKey(typeName.toString())) {
+            PrintStream error = classTable.semantError(childClass);
+            error.println("Cannot construct undefined class" + typeName.toString() + ".");
+            return TreeConstants.Object_;
+        }
+
+        if (typeName.toString().equals(TreeConstants.SELF_TYPE.toString())) {
+            e.set_type(childClass.getName());
+            return childClass.getName(); 
+        }
+
+        e.set_type(typeName);
+        return typeName;
+    }
+
+    private AbstractSymbol typeCheckIsVoidExpression(ClassTable classTable, SymbolTable scopeTable, class_c childClass, isvoid e) {
+        typeCheckExpression(classTable, scopeTable, childClass, e.e1);
+
+        e.set_type(TreeConstants.Bool);
+        return TreeConstants.Bool;
+    }
+
+    private AbstractSymbol typeCheckObjectExpression(ClassTable classTable, SymbolTable scopeTable, class_c childClass, object e) {
+        AbstractSymbol objectType = (AbstractSymbol) scopeTable.lookup(e.name);
+        if (objectType == null) {
+            PrintStream error = classTable.semantError(childClass);
+            error.println("Object" + e.name.toString() + " is not in current scope.");
+            return TreeConstants.Object_;
+        }
+
+        e.set_type(objectType);
+        return objectType;
+    }
+
+    /* Get the common ancestor class of class 1 and class 2 */
+    private AbstractSymbol getCommonAncestor(ClassTable classTable, String class1, String class2) {
+        AbstractSymbol ancestorName = null;
+        int depth1 = 0, depth2 = 0;
+        Vertex v1 = classTable.inheritanceGraph.s2v.get(class1);
+        Vertex v2 = classTable.inheritanceGraph.s2v.get(class2);
+
+        for (Vertex v = v1; v != null; v = v.parent) {
+            depth1++;
+        }
+
+        for (Vertex v = v2; v != null; v = v.parent) {
+            depth2++;
+        }
+
+        if (depth1 > depth2) {
+            for (int i = 0; i < depth1 - depth2; i++) {
+                v1 = v1.parent;
+            }
+        } else {
+            for (int i = 0; i < depth2 - depth1; i++) {
+                v2 = v2.parent;
+            }
+        }
+        while (!v1.toString().equals(v2.toString())) {
+            v1 = v1.parent;
+            v2 = v2.parent;
+        }
+
+        return v1.myClass.getName();
     }
 
 }
