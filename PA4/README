@@ -206,6 +206,12 @@ Instructions
 Write-up for PA4
 ----------------
 
+At a high level, we followed the listed 3 main steps in the PA4 spec.
+
+ClassTable.methodTable holds the methods for each class.
+ClassTable.attributeTable holds the attributes for each class.
+These are the Object and Method environments.
+
 To check if the class hierarchy is valid:
 We implemented a Graph where each vertex can have one parent and many children.
 The graph is initialized with just the Object and IO classes. We then iterate
