@@ -399,7 +399,7 @@ class CgenClassTable extends SymbolTable {
     /* recursively sets the tag of every node */
     private void setTags (CgenNode node) {
     	node.tag = counter++;
-    	for (Enumeration<CgenNode> e = node.getChildren(); e.hasMoreElements(); )
+    	for (Enumeration e = node.getChildren(); e.hasMoreElements(); )
     		setTags((CgenNode) e.nextElement());
     }
 
@@ -408,6 +408,7 @@ class CgenClassTable extends SymbolTable {
      */
     private void setFeatures (CgenNode node) {
     	Vector<method> methods = new Vector<method>();
+    	Vector<method> newMethods = new Vector<method>();
     	Vector<attr> attrs = new Vector<attr>();
     	if (!node.name.equals(TreeConstants.Object_)) {
     		methods.addAll(node.getParentNd().methods);
@@ -422,6 +423,7 @@ class CgenClassTable extends SymbolTable {
     		}
     		else if (f instanceof method) {
     			method m = (method) f;
+    			newMethods.add(m);
     			boolean found = false;
     			for (int i = 0; i < numParentMethods; i++) {
     				if (m.name.equals(methods.get(i).name)) {
@@ -435,8 +437,9 @@ class CgenClassTable extends SymbolTable {
     	}
 
     	node.methods = methods;
+    	node.newMethods = newMethods;
     	node.attrs = attrs;
-    	for (Enumeration<CgenNode> e = node.getChildren(); e.hasMoreElements(); )
+    	for (Enumeration e = node.getChildren(); e.hasMoreElements(); )
     		setFeatures((CgenNode) e.nextElement());
     }
 
@@ -491,7 +494,7 @@ class CgenClassTable extends SymbolTable {
     	for (attr a : node.attrs)
     		emitAttr(a);
 
-    	for (Enumeration<CgenNode> e = node.getChildren(); e.hasMoreElements(); )
+    	for (Enumeration e = node.getChildren(); e.hasMoreElements(); )
     		codeProtObjTab((CgenNode) e.nextElement());
     }
 
@@ -514,7 +517,7 @@ class CgenClassTable extends SymbolTable {
     	str.print(CgenSupport.WORD);
     	((StringSymbol) AbstractTable.stringtable.lookup(node.name.getString())).codeRef(str);
     	str.println();
-    	for (Enumeration<CgenNode> e = node.getChildren(); e.hasMoreElements(); )
+    	for (Enumeration e = node.getChildren(); e.hasMoreElements(); )
     		codeClassNameTab((CgenNode) e.nextElement());
     }
 
@@ -526,7 +529,7 @@ class CgenClassTable extends SymbolTable {
     	str.print(CgenSupport.WORD);
     	CgenSupport.emitInitRef(node.name, str);
     	str.println();
-    	for (Enumeration<CgenNode> e = node.getChildren(); e.hasMoreElements(); )
+    	for (Enumeration e = node.getChildren(); e.hasMoreElements(); )
     		codeClassObjTab((CgenNode) e.nextElement());
     }
 
@@ -539,7 +542,7 @@ class CgenClassTable extends SymbolTable {
     		str.println();
     	}
 
-    	for (Enumeration<CgenNode> e = node.getChildren(); e.hasMoreElements(); )
+    	for (Enumeration e = node.getChildren(); e.hasMoreElements(); )
     		codeDispatchTabs((CgenNode) e.nextElement());
     }
 
@@ -577,13 +580,57 @@ class CgenClassTable extends SymbolTable {
     	// jr $ra
     	CgenSupport.emitReturn(str);
 
-    	for (Enumeration<CgenNode> e = node.getChildren(); e.hasMoreElements(); )
+    	for (Enumeration e = node.getChildren(); e.hasMoreElements(); )
     		codeObjInit((CgenNode) e.nextElement());
     }
 
     /* recursively emits code for all class methods */
     private void codeClassMethods (CgenNode node) {
+    	if (!node.basic()) {
+    		for (method m : node.newMethods) {
+    			enterScope();
+    			str.print(node.name + CgenSupport.METHOD_SEP + m.name + CgenSupport.LABEL);
+    			// offset for formals and fp, s0, ra
+    			int offset = - CgenSupport.WORD_SIZE * (m.formals.getLength() + 5);
+    			// addiu $sp $sp offset
+    			CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP, offset, str);
+    			// sw $fp 12($sp)
+    			CgenSupport.emitStore(CgenSupport.FP, 3, CgenSupport.SP, str);
+    			// sw $s0 8($sp)
+    			CgenSupport.emitStore(CgenSupport.SELF, 2, CgenSupport.SP, str);
+    			// sw $ra 4($sp)
+    			CgenSupport.emitStore(CgenSupport.RA, 1, CgenSupport.SP, str);
+    			// addiu $fp $sp 16
+    			CgenSupport.emitAddiu(CgenSupport.FP, CgenSupport.SP, 16, str);
+    			// move $s0 $a0
+    			CgenSupport.emitMove(CgenSupport.SELF, CgenSupport.ACC, str);
 
+    			// map formal parameters to offsets
+    			int i = 1;
+    			for (Enumeration e = m.formals.getElements(); e.hasMoreElements(); ) {
+    				formalc f = (formalc) e.nextElement();
+    				addId(f.name, i++);
+    			}
+
+    			// generate code for method body
+    			m.expr.code(this, str);
+
+    			// lw $fp 12($sp)
+    			CgenSupport.emitLoad(CgenSupport.FP, 3, CgenSupport.SP, str);
+    			// lw $s0 8($sp)
+    			CgenSupport.emitLoad(CgenSupport.SELF, 2, CgenSupport.SP, str);
+    			// lw $ra 4($sp)
+    			CgenSupport.emitLoad(CgenSupport.RA, 1, CgenSupport.SP, str);
+    			// addiu $sp $sp -offset
+    			CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP, -offset, str);
+    			// jr $ra
+    			CgenSupport.emitReturn(str);
+    			exitScope();
+    		}
+		}
+
+		for (Enumeration e = node.getChildren(); e.hasMoreElements(); )
+			codeClassMethods((CgenNode) e.nextElement());
     }
 
     /** Gets the root of the inheritance tree */

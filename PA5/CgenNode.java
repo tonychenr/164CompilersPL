@@ -45,6 +45,7 @@ class CgenNode extends class_c {
     int tag;
 
     Vector<method> methods;
+    Vector<method> newMethods;
     Vector<attr> attrs;
 
     /** Constructs a new CgenNode to represent class "c".
