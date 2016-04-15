@@ -398,11 +398,9 @@ class CgenClassTable extends SymbolTable {
 
     /* recursively sets the tag of every node */
     private void setTags (CgenNode node) {
-    	node.tag = counter;
-    	for (Enumeration<CgenNode> e = node.getChildren(); e.hasMoreElements(); ) {
+    	node.tag = counter++;
+    	for (Enumeration<CgenNode> e = node.getChildren(); e.hasMoreElements(); )
     		setTags((CgenNode) e.nextElement());
-    		counter ++;
-    	}
     }
 
     /* recursively sets the features (methods and attrs) for each class node
@@ -411,7 +409,7 @@ class CgenClassTable extends SymbolTable {
     private void setFeatures (CgenNode node) {
     	Vector<method> methods = new Vector<method>();
     	Vector<attr> attrs = new Vector<attr>();
-    	if (!node.getParentNd().getName().equals(TreeConstants.No_class)) {
+    	if (!node.name.equals(TreeConstants.Object_)) {
     		methods.addAll(node.getParentNd().methods);
     		attrs.addAll(node.getParentNd().attrs);
     	}
@@ -547,18 +545,40 @@ class CgenClassTable extends SymbolTable {
 
     /* recursively emits code for object initialization */
     private void codeObjInit (CgenNode node) {
-    	// str.print(node.name.getString() + CgenSupport.CLASSINIT_SUFFIX + CgenSupport.LABEL);
-    	// // addiu $sp $sp -12
-    	// CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP, -12, str);
-    	// // sw $fp 12($sp)
-    	// CgenSupport.emitStore(CgenSupport.FP, 3, CgenSupport.SP, str);
-    	// // sw $s0 8($sp)
-    	// CgenSupport.emitStore(CgenSupport.SELF, 2, CgenSupport.SP, str);
-    	// // sw $ra 4($sp)
-    	// CgenSupport.emitStore(CgenSupport.RA, 1, CgenSupport.SP, str);
-    	// // addiu $fp $sp 16
+    	str.print(node.name.getString() + CgenSupport.CLASSINIT_SUFFIX + CgenSupport.LABEL);
+    	// addiu $sp $sp -12
+    	CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP, -12, str);
+    	// sw $fp 12($sp)
+    	CgenSupport.emitStore(CgenSupport.FP, 3, CgenSupport.SP, str);
+    	// sw $s0 8($sp)
+    	CgenSupport.emitStore(CgenSupport.SELF, 2, CgenSupport.SP, str);
+    	// sw $ra 4($sp)
+    	CgenSupport.emitStore(CgenSupport.RA, 1, CgenSupport.SP, str);
+    	// addiu $fp $sp 16
+    	CgenSupport.emitAddiu(CgenSupport.FP, CgenSupport.SP, 16, str);
+    	// move $s0 $a0
+    	CgenSupport.emitMove(CgenSupport.SELF, CgenSupport.ACC, str);
 
+    	// if its not object
+    	// jal superclass_init
+    	if (!node.name.equals(TreeConstants.Object_))
+    		CgenSupport.emitJal(node.getParentNd().name.getString() + CgenSupport.CLASSINIT_SUFFIX, str);
 
+    	// move $a0 $s0
+    	CgenSupport.emitMove(CgenSupport.ACC, CgenSupport.SELF, str);
+    	// lw $fp 12($sp)
+    	CgenSupport.emitLoad(CgenSupport.FP, 3, CgenSupport.SP, str);
+    	// lw $s0 8($sp)
+    	CgenSupport.emitLoad(CgenSupport.SELF, 2, CgenSupport.SP, str);
+    	// lw $ra 4($sp)
+    	CgenSupport.emitLoad(CgenSupport.RA, 1, CgenSupport.SP, str);
+    	// addiu $sp $sp 12
+    	CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP, 12, str);
+    	// jr $ra
+    	CgenSupport.emitReturn(str);
+
+    	for (Enumeration<CgenNode> e = node.getChildren(); e.hasMoreElements(); )
+    		codeObjInit((CgenNode) e.nextElement());
     }
 
     /* recursively emits code for all class methods */
