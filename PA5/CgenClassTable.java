@@ -40,6 +40,7 @@ class CgenClassTable extends SymbolTable {
     private int intclasstag;
     private int boolclasstag;
 
+    private int counter = 0;
 
     // The following methods emit code for constants and global
     // declarations.
@@ -378,10 +379,6 @@ class CgenClassTable extends SymbolTable {
 
 	this.str = str;
 
-	stringclasstag = 0 /* Change to your String class tag here */;
-	intclasstag =    0 /* Change to your Int class tag here */;
-	boolclasstag =   0 /* Change to your Bool class tag here */;
-
 	enterScope();
 	if (Flags.cgen_debug) System.out.println("Building CgenClassTable");
 	
@@ -389,9 +386,60 @@ class CgenClassTable extends SymbolTable {
 	installClasses(cls);
 	buildInheritanceTree();
 
+	setTags(root());
+	stringclasstag = ((CgenNode) probe(TreeConstants.Str)).tag;
+	intclasstag =    ((CgenNode) probe(TreeConstants.Int)).tag;
+	boolclasstag =   ((CgenNode) probe(TreeConstants.Bool)).tag;
+	setFeatures(root());
 	code();
 
 	exitScope();
+    }
+
+    /* recursively sets the tag of every node */
+    private void setTags (CgenNode node) {
+    	node.tag = counter;
+    	for (Enumeration<CgenNode> e = node.getChildren(); e.hasMoreElements(); ) {
+    		setTags((CgenNode) e.nextElement());
+    		counter ++;
+    	}
+    }
+
+    /* recursively sets the features (methods and attrs) for each class node
+     * inherited methods are kept in the same indices in children
+     */
+    private void setFeatures (CgenNode node) {
+    	Vector<method> methods = new Vector<method>();
+    	Vector<attr> attrs = new Vector<attr>();
+    	if (!node.getParentNd().getName().equals(TreeConstants.No_class)) {
+    		methods.addAll(node.getParentNd().methods);
+    		attrs.addAll(node.getParentNd().attrs);
+    	}
+    	int numParentMethods = methods.size();
+
+    	for (Enumeration e = node.getFeatures().getElements(); e.hasMoreElements(); ) {
+    		Feature f = (Feature) e.nextElement();
+    		if (f instanceof attr) {
+    			attrs.add((attr) f);
+    		}
+    		else if (f instanceof method) {
+    			method m = (method) f;
+    			boolean found = false;
+    			for (int i = 0; i < numParentMethods; i++) {
+    				if (m.name.equals(methods.get(i).name)) {
+    					methods.set(i, m);
+    					found = true;
+    					break;
+    				}
+    			}
+    			if (!found) methods.add(m);
+    		}
+    	}
+
+    	node.methods = methods;
+    	node.attrs = attrs;
+    	for (Enumeration<CgenNode> e = node.getChildren(); e.hasMoreElements(); )
+    		setFeatures((CgenNode) e.nextElement());
     }
 
     /** This method is the meat of the code generator.  It is to be
@@ -411,6 +459,17 @@ class CgenClassTable extends SymbolTable {
 	//                   - class_nameTab
 	//                   - dispatch tables
 
+
+	codeProtObjTab(root());
+
+	str.print(CgenSupport.CLASSNAMETAB + CgenSupport.LABEL);
+	codeClassNameTab(root());
+
+	str.print(CgenSupport.CLASSOBJTAB + CgenSupport.LABEL);
+	codeClassObjTab(root());
+
+	codeDispatchTabs(root());
+
 	if (Flags.cgen_debug) System.out.println("coding global text");
 	codeGlobalText();
 
@@ -418,6 +477,93 @@ class CgenClassTable extends SymbolTable {
 	//                   - object initializer
 	//                   - the class methods
 	//                   - etc...
+
+	codeObjInit(root());
+	codeClassMethods(root());
+    }
+
+    /* recursively emits prototype object code for each class */
+    private void codeProtObjTab (CgenNode node) {
+    	str.println(CgenSupport.WORD + "-1");
+    	str.print(node.name.getString() + CgenSupport.PROTOBJ_SUFFIX  + CgenSupport.LABEL);
+    	str.println(CgenSupport.WORD + node.tag);
+    	str.println(CgenSupport.WORD + (3+node.attrs.size()));
+    	str.println(CgenSupport.WORD + node.name.getString() + CgenSupport.DISPTAB_SUFFIX);
+
+    	for (attr a : node.attrs)
+    		emitAttr(a);
+
+    	for (Enumeration<CgenNode> e = node.getChildren(); e.hasMoreElements(); )
+    		codeProtObjTab((CgenNode) e.nextElement());
+    }
+
+    /* emits code for a single attribute */
+    private void emitAttr (attr a) {
+    	str.print(CgenSupport.WORD);
+    	if (a.type_decl.equals(TreeConstants.Int))
+    		((IntSymbol) AbstractTable.inttable.lookup("0")).codeRef(str);
+    	else if (a.type_decl.equals(TreeConstants.Str))
+    		((StringSymbol) AbstractTable.stringtable.lookup("")).codeRef(str);
+    	else if (a.type_decl.equals(TreeConstants.Bool))
+    		BoolConst.falsebool.codeRef(str);
+    	else
+    		str.print(0);
+    	str.println();
+    }
+
+    /* recursively emits class name table code for each class */
+    private void codeClassNameTab (CgenNode node) {
+    	str.print(CgenSupport.WORD);
+    	((StringSymbol) AbstractTable.stringtable.lookup(node.name.getString())).codeRef(str);
+    	str.println();
+    	for (Enumeration<CgenNode> e = node.getChildren(); e.hasMoreElements(); )
+    		codeClassNameTab((CgenNode) e.nextElement());
+    }
+
+    /* recursively emits class object table code for each class */
+    private void codeClassObjTab (CgenNode node) {
+    	str.print(CgenSupport.WORD);
+    	CgenSupport.emitProtObjRef(node.name, str);
+    	str.println();
+    	str.print(CgenSupport.WORD);
+    	CgenSupport.emitInitRef(node.name, str);
+    	str.println();
+    	for (Enumeration<CgenNode> e = node.getChildren(); e.hasMoreElements(); )
+    		codeClassObjTab((CgenNode) e.nextElement());
+    }
+
+    /* recursively emits dispatch table code for each class */
+    private void codeDispatchTabs (CgenNode node)  {
+    	str.print(node.name.getString() + CgenSupport.DISPTAB_SUFFIX + CgenSupport.LABEL);
+    	for (method m : node.methods) {
+    		str.print(CgenSupport.WORD);
+    		CgenSupport.emitMethodRef(node.name, m.name, str);
+    		str.println();
+    	}
+
+    	for (Enumeration<CgenNode> e = node.getChildren(); e.hasMoreElements(); )
+    		codeDispatchTabs((CgenNode) e.nextElement());
+    }
+
+    /* recursively emits code for object initialization */
+    private void codeObjInit (CgenNode node) {
+    	// str.print(node.name.getString() + CgenSupport.CLASSINIT_SUFFIX + CgenSupport.LABEL);
+    	// // addiu $sp $sp -12
+    	// CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP, -12, str);
+    	// // sw $fp 12($sp)
+    	// CgenSupport.emitStore(CgenSupport.FP, 3, CgenSupport.SP, str);
+    	// // sw $s0 8($sp)
+    	// CgenSupport.emitStore(CgenSupport.SELF, 2, CgenSupport.SP, str);
+    	// // sw $ra 4($sp)
+    	// CgenSupport.emitStore(CgenSupport.RA, 1, CgenSupport.SP, str);
+    	// // addiu $fp $sp 16
+
+
+    }
+
+    /* recursively emits code for all class methods */
+    private void codeClassMethods (CgenNode node) {
+
     }
 
     /** Gets the root of the inheritance tree */
@@ -425,5 +571,3 @@ class CgenClassTable extends SymbolTable {
 	return (CgenNode)probe(TreeConstants.Object_);
     }
 }
-			  
-    
