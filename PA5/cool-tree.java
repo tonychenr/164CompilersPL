@@ -1400,12 +1400,15 @@ class lt extends Expression {
         CgenSupport.emitLoad(CgenSupport.T1, 3, CgenSupport.T1, s);
         CgenSupport.emitLoad(CgenSupport.T2, 3, CgenSupport.ACC, s);
 
+        // restore stack pointer
+        CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP, 4, s);
+
         // set up label numbers
         int trueLabel = table.getNextLabel();
         int endLabel = table.getNextLabel();
 
         // blt $t1 $a0 trueLabel
-        CgenSupport.emitBlt(CgenSupport.T1, CgenSupport.ACC, trueLabel, s);
+        CgenSupport.emitBlt(CgenSupport.T1, CgenSupport.T2, trueLabel, s);
         // load false into ACC
         CgenSupport.emitLoadBool(CgenSupport.ACC, BoolConst.falsebool,s);
         // b endLabel
@@ -1532,9 +1535,10 @@ class leq extends Expression {
         CgenSupport.emitLoad(CgenSupport.T1, 1, CgenSupport.SP, s);
         CgenSupport.emitLoad(CgenSupport.T1, 3, CgenSupport.T1, s);
         CgenSupport.emitLoad(CgenSupport.T2, 3, CgenSupport.ACC, s);
+        CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP, 4, s);
         int trueLabel = table.getNextLabel();
         int endLabel = table.getNextLabel();
-        CgenSupport.emitBleq(CgenSupport.T1, CgenSupport.ACC, trueLabel, s);
+        CgenSupport.emitBleq(CgenSupport.T1, CgenSupport.T2, trueLabel, s);
         CgenSupport.emitLoadBool(CgenSupport.ACC, BoolConst.falsebool,s);
         CgenSupport.emitBranch(endLabel, s);
         CgenSupport.emitLabelDef(trueLabel,s);

@@ -69,7 +69,8 @@ class Main inherits IO {
 
   	(* testing while loop *)
   	(* for checkpoint we only test a loop that should never run *)
-  	while false loop out_string("loop: this should not be printed") pool;
+  	while false loop out_string("loop: this should not be printed\n") pool;
+    out_string("\n");
   }};
 };
 
