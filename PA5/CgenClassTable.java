@@ -24,6 +24,7 @@ PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 import java.io.PrintStream;
 import java.util.Vector;
 import java.util.Enumeration;
+import java.util.HashMap;
 
 /** This class is used for representing the inheritance tree during code
     generation. You will need to fill in some of its methods and
@@ -40,7 +41,13 @@ class CgenClassTable extends SymbolTable {
     private int intclasstag;
     private int boolclasstag;
 
-    private int counter = 0;
+    // used for setting unique tags to nodes
+    private int tagCounter = 0;
+    // used for creating unique labels
+    private int labelCounter = 0;
+
+    // keeps track of the current SELF_TYPE class
+    CgenNode currentSelf;
 
     // The following methods emit code for constants and global
     // declarations.
@@ -375,6 +382,8 @@ class CgenClassTable extends SymbolTable {
 
     /** Constructs a new class table and invokes the code generator */
     public CgenClassTable(Classes cls, PrintStream str) {
+    currentSelf = null;
+
 	nds = new Vector();
 
 	this.str = str;
@@ -398,7 +407,7 @@ class CgenClassTable extends SymbolTable {
 
     /* recursively sets the tag of every node */
     private void setTags (CgenNode node) {
-    	node.tag = counter++;
+    	node.tag = tagCounter++;
     	for (Enumeration e = node.getChildren(); e.hasMoreElements(); )
     		setTags((CgenNode) e.nextElement());
     }
@@ -410,9 +419,11 @@ class CgenClassTable extends SymbolTable {
     	Vector<method> methods = new Vector<method>();
     	Vector<method> newMethods = new Vector<method>();
     	Vector<attr> attrs = new Vector<attr>();
+    	HashMap<AbstractSymbol, AbstractSymbol> method2class = new HashMap<AbstractSymbol, AbstractSymbol>();
     	if (!node.name.equals(TreeConstants.Object_)) {
     		methods.addAll(node.getParentNd().methods);
     		attrs.addAll(node.getParentNd().attrs);
+    		method2class.putAll(node.getParentNd().method2class);
     	}
     	int numParentMethods = methods.size();
 
@@ -424,6 +435,8 @@ class CgenClassTable extends SymbolTable {
     		else if (f instanceof method) {
     			method m = (method) f;
     			newMethods.add(m);
+    			method2class.put(m.name, node.name);
+
     			boolean found = false;
     			for (int i = 0; i < numParentMethods; i++) {
     				if (m.name.equals(methods.get(i).name)) {
@@ -439,6 +452,7 @@ class CgenClassTable extends SymbolTable {
     	node.methods = methods;
     	node.newMethods = newMethods;
     	node.attrs = attrs;
+    	node.method2class = method2class;
     	for (Enumeration e = node.getChildren(); e.hasMoreElements(); )
     		setFeatures((CgenNode) e.nextElement());
     }
@@ -538,7 +552,7 @@ class CgenClassTable extends SymbolTable {
     	str.print(node.name.getString() + CgenSupport.DISPTAB_SUFFIX + CgenSupport.LABEL);
     	for (method m : node.methods) {
     		str.print(CgenSupport.WORD);
-    		CgenSupport.emitMethodRef(node.name, m.name, str);
+    		CgenSupport.emitMethodRef(node.method2class.get(m.name), m.name, str);
     		str.println();
     	}
 
@@ -548,6 +562,8 @@ class CgenClassTable extends SymbolTable {
 
     /* recursively emits code for object initialization */
     private void codeObjInit (CgenNode node) {
+    	currentSelf = node;
+
     	str.print(node.name.getString() + CgenSupport.CLASSINIT_SUFFIX + CgenSupport.LABEL);
     	// addiu $sp $sp -12
     	CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP, -12, str);
@@ -582,10 +598,13 @@ class CgenClassTable extends SymbolTable {
 
     	for (Enumeration e = node.getChildren(); e.hasMoreElements(); )
     		codeObjInit((CgenNode) e.nextElement());
+
+    	currentSelf = null;
     }
 
     /* recursively emits code for all class methods */
     private void codeClassMethods (CgenNode node) {
+    	currentSelf = node;
     	if (!node.basic()) {
     		for (method m : node.newMethods) {
     			enterScope();
@@ -631,10 +650,17 @@ class CgenClassTable extends SymbolTable {
 
 		for (Enumeration e = node.getChildren(); e.hasMoreElements(); )
 			codeClassMethods((CgenNode) e.nextElement());
+
+		currentSelf = null;
     }
 
     /** Gets the root of the inheritance tree */
     public CgenNode root() {
 	return (CgenNode)probe(TreeConstants.Object_);
+    }
+
+    /* gets the label counter and increments */
+    public int getNextLabel () {
+    	return labelCounter ++;
     }
 }

@@ -24,6 +24,7 @@ PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 import java.io.PrintStream;
 import java.util.Vector;
 import java.util.Enumeration;
+import java.util.HashMap;
 
 class CgenNode extends class_c {
     /** The parent of this node in the inheritance tree */
@@ -47,6 +48,11 @@ class CgenNode extends class_c {
     Vector<method> methods;
     Vector<method> newMethods;
     Vector<attr> attrs;
+
+    // maps each method that this class has access to
+    // to the class in which it was most recently defined
+    HashMap<AbstractSymbol, AbstractSymbol> method2class;
+
 
     /** Constructs a new CgenNode to represent class "c".
      * @param c the class

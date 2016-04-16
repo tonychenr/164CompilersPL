@@ -558,7 +558,7 @@ class assign extends Expression {
       * @param s the output stream 
       * */
     public void code(CgenClassTable table, PrintStream s) {
-        
+
     }
 
 
@@ -619,6 +619,53 @@ class static_dispatch extends Expression {
       * @param s the output stream 
       * */
     public void code(CgenClassTable table, PrintStream s) {
+        // evaluate arguments in order, but store them on stack in reverse order
+        for (int i = 0; i < actual.getLength(); i++) {
+            Expression a = (Expression) actual.getNth(i);
+            a.code(table, s);
+            CgenSupport.emitPush(CgenSupport.ACC, s);
+        }
+
+        // evaluate expr and store result in ACC
+        expr.code(table, s);
+        if (expr.get_type().equals(TreeConstants.SELF_TYPE))
+            CgenSupport.emitMove(CgenSupport.ACC, CgenSupport.SELF, s);
+
+        // prepare labels
+        int voidLabel = table.getNextLabel();
+        int endLabel = table.getNextLabel();
+
+        // if expr is void go to voidLabel
+        CgenSupport.emitBeqz(CgenSupport.ACC, voidLabel, s);
+
+        // else
+        // extract dispatch table pointer from expr object
+        CgenSupport.emitLoad(CgenSupport.T1, CgenSupport.DISPTABLE_OFFSET, CgenSupport.ACC, s);
+        // get dispatch table offset and call method
+        CgenNode exprNode = (CgenNode) table.lookup(type_name);
+        if (type_name.equals(TreeConstants.SELF_TYPE))
+            exprNode = table.currentSelf; 
+        Vector<method> methods = exprNode.methods;
+        int offset = -1;
+        for (int i = 0; i < methods.size(); i++) {
+            if (methods.get(i).name.equals(name))
+                offset = i;
+        }
+        CgenSupport.emitLoad(CgenSupport.T1, offset, CgenSupport.T1, s);
+        CgenSupport.emitJalr(CgenSupport.T1, s);
+        // b endLabel
+        CgenSupport.emitBranch(endLabel, s);
+
+        // voidLabel:
+        CgenSupport.emitLabelDef(voidLabel, s);
+        //StringSymbol filename = (StringSymbol) ((CgenNode) table.lookup(TreeConstants.self)).getFilename();
+        StringSymbol filename = (StringSymbol) exprNode.getFilename();
+        CgenSupport.emitLoadString(CgenSupport.ACC, filename, s);
+        CgenSupport.emitLoadImm(CgenSupport.T1, getLineNumber(), s);
+        CgenSupport.emitJal("_dispatch_abort", s);
+
+        // endLabel:
+        CgenSupport.emitLabelDef(endLabel, s);
     }
 
 
@@ -674,6 +721,54 @@ class dispatch extends Expression {
       * @param s the output stream 
       * */
     public void code(CgenClassTable table, PrintStream s) {
+        // evaluate arguments in order, but store them on stack in reverse order
+        for (int i = 0; i < actual.getLength(); i++) {
+            Expression a = (Expression) actual.getNth(i);
+            a.code(table, s);
+            CgenSupport.emitPush(CgenSupport.ACC, s);
+        }
+
+        // evaluate expr and store result in ACC
+        expr.code(table, s);
+        if (expr.get_type().equals(TreeConstants.SELF_TYPE))
+            CgenSupport.emitMove(CgenSupport.ACC, CgenSupport.SELF, s);
+
+        // prepare labels
+        int voidLabel = table.getNextLabel();
+        int endLabel = table.getNextLabel();
+
+        // if expr is void go to voidLabel
+        CgenSupport.emitBeqz(CgenSupport.ACC, voidLabel, s);
+
+        // else
+        // extract dispatch table pointer from expr object
+        CgenSupport.emitLoad(CgenSupport.T1, CgenSupport.DISPTABLE_OFFSET, CgenSupport.ACC, s);
+        // get dispatch table offset and call method
+        AbstractSymbol exprType = expr.get_type();
+        CgenNode exprNode = (CgenNode) table.lookup(exprType);
+        if (exprType.equals(TreeConstants.SELF_TYPE))
+            exprNode = table.currentSelf; 
+        Vector<method> methods = exprNode.methods;
+        int offset = -1;
+        for (int i = 0; i < methods.size(); i++) {
+            if (methods.get(i).name.equals(name))
+                offset = i;
+        }
+        CgenSupport.emitLoad(CgenSupport.T1, offset, CgenSupport.T1, s);
+        CgenSupport.emitJalr(CgenSupport.T1, s);
+        // b endLabel
+        CgenSupport.emitBranch(endLabel, s);
+
+        // voidLabel:
+        CgenSupport.emitLabelDef(voidLabel, s);
+        //StringSymbol filename = (StringSymbol) ((CgenNode) table.lookup(TreeConstants.self)).getFilename();
+        StringSymbol filename = (StringSymbol) exprNode.getFilename();
+        CgenSupport.emitLoadString(CgenSupport.ACC, filename, s);
+        CgenSupport.emitLoadImm(CgenSupport.T1, getLineNumber(), s);
+        CgenSupport.emitJal("_dispatch_abort", s);
+
+        // endLabel:
+        CgenSupport.emitLabelDef(endLabel, s);
     }
 
 
@@ -725,6 +820,27 @@ class cond extends Expression {
       * @param s the output stream 
       * */
     public void code(CgenClassTable table, PrintStream s) {
+        // evaluate pred and store pointer to resulting bool object in ACC
+        pred.code(table, s);
+        // extract bool attribute from bool object
+        CgenSupport.emitLoad(CgenSupport.T1, 3, CgenSupport.ACC, s);
+
+        // prepare labels
+        int falseLabel = table.getNextLabel();
+        int endLabel = table.getNextLabel();
+
+        // if pred is false (0) go to falseLabel
+        CgenSupport.emitBeqz(CgenSupport.T1, falseLabel, s);
+        // evaluate then_exp and store result in ACC
+        then_exp.code(table, s);
+        // b endLabel
+        CgenSupport.emitBranch(endLabel, s);
+        // falseLabel:
+        CgenSupport.emitLabelDef(falseLabel, s);
+        // evaluate else_exp and store result in ACC
+        else_exp.code(table, s);
+        // endLabel:
+        CgenSupport.emitLabelDef(endLabel, s);
     }
 
 
@@ -771,6 +887,28 @@ class loop extends Expression {
       * @param s the output stream 
       * */
     public void code(CgenClassTable table, PrintStream s) {
+        // prepare labels
+        int startLabel = table.getNextLabel();
+        int endLabel = table.getNextLabel();
+
+        // label start of loop
+        CgenSupport.emitLabelDef(startLabel, s);
+
+        // evaluate pred and store pointer to resulting bool object in ACC
+        pred.code(table, s);
+        // extract bool attribute from bool object
+        CgenSupport.emitLoad(CgenSupport.T1, 3, CgenSupport.ACC, s);
+
+        // if pred is false (0) go to endLabel
+        CgenSupport.emitBeqz(CgenSupport.T1, endLabel, s);
+        // else evaluate body and store in ACC
+        body.code(table, s);
+        // b startLabel
+        CgenSupport.emitBranch(startLabel, s);
+        // endLabel:
+        CgenSupport.emitLabelDef(endLabel, s);
+        // return void
+        CgenSupport.emitMove(CgenSupport.ACC, CgenSupport.ZERO, s);
     }
 
 
@@ -862,6 +1000,8 @@ class block extends Expression {
       * @param s the output stream 
       * */
     public void code(CgenClassTable table, PrintStream s) {
+        for (Enumeration e = body.getElements(); e.hasMoreElements(); )
+            ((Expression) e.nextElement()).code(table, s);
     }
 
 
@@ -964,6 +1104,26 @@ class plus extends Expression {
       * @param s the output stream 
       * */
     public void code(CgenClassTable table, PrintStream s) {
+        // evaluate e1, store pointer in ACC
+        e1.code(table, s);
+        // push ACC onto stack
+        CgenSupport.emitPush(CgenSupport.ACC, s);
+        // evaluate e2, store pointer in ACC
+        e2.code(table, s);
+        // copy ACC, store pointer of the new int object in ACC
+        CgenSupport.emitJal("Object.copy", s);
+        // load pointer to int object on stack (result of e1)
+        CgenSupport.emitLoad(CgenSupport.T1, 1, CgenSupport.SP, s);
+        // extract actual int attribute from this int object (result of e1)
+        CgenSupport.emitLoad(CgenSupport.T1, 3, CgenSupport.T1, s);
+        // extract actual int attribute from int object containing result of e2
+        CgenSupport.emitLoad(CgenSupport.T2, 3, CgenSupport.ACC, s);
+        // perform the addition
+        CgenSupport.emitAdd(CgenSupport.T1, CgenSupport.T1, CgenSupport.T2, s);
+        // store result in the newly allocated int object
+        CgenSupport.emitStore(CgenSupport.T1, 3, CgenSupport.ACC, s);
+        // restore stack pointer
+        CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP, 4, s);
     }
 
 
@@ -1010,6 +1170,17 @@ class sub extends Expression {
       * @param s the output stream 
       * */
     public void code(CgenClassTable table, PrintStream s) {
+        // same as add but with emitSub
+        e1.code(table, s);
+        CgenSupport.emitPush(CgenSupport.ACC, s);
+        e2.code(table, s);
+        CgenSupport.emitJal("Object.copy", s);
+        CgenSupport.emitLoad(CgenSupport.T1, 1, CgenSupport.SP, s);
+        CgenSupport.emitLoad(CgenSupport.T1, 3, CgenSupport.T1, s);
+        CgenSupport.emitLoad(CgenSupport.T2, 3, CgenSupport.ACC, s);
+        CgenSupport.emitSub(CgenSupport.T1, CgenSupport.T1, CgenSupport.T2, s);
+        CgenSupport.emitStore(CgenSupport.T1, 3, CgenSupport.ACC, s);
+        CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP, 4, s);
     }
 
 
@@ -1056,6 +1227,17 @@ class mul extends Expression {
       * @param s the output stream 
       * */
     public void code(CgenClassTable table, PrintStream s) {
+        // same as add but with emitMul
+        e1.code(table, s);
+        CgenSupport.emitPush(CgenSupport.ACC, s);
+        e2.code(table, s);
+        CgenSupport.emitJal("Object.copy", s);
+        CgenSupport.emitLoad(CgenSupport.T1, 1, CgenSupport.SP, s);
+        CgenSupport.emitLoad(CgenSupport.T1, 3, CgenSupport.T1, s);
+        CgenSupport.emitLoad(CgenSupport.T2, 3, CgenSupport.ACC, s);
+        CgenSupport.emitMul(CgenSupport.T1, CgenSupport.T1, CgenSupport.T2, s);
+        CgenSupport.emitStore(CgenSupport.T1, 3, CgenSupport.ACC, s);
+        CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP, 4, s);
     }
 
 
@@ -1102,6 +1284,17 @@ class divide extends Expression {
       * @param s the output stream 
       * */
     public void code(CgenClassTable table, PrintStream s) {
+        // same as add but with emitDiv
+        e1.code(table, s);
+        CgenSupport.emitPush(CgenSupport.ACC, s);
+        e2.code(table, s);
+        CgenSupport.emitJal("Object.copy", s);
+        CgenSupport.emitLoad(CgenSupport.T1, 1, CgenSupport.SP, s);
+        CgenSupport.emitLoad(CgenSupport.T1, 3, CgenSupport.T1, s);
+        CgenSupport.emitLoad(CgenSupport.T2, 3, CgenSupport.ACC, s);
+        CgenSupport.emitDiv(CgenSupport.T1, CgenSupport.T1, CgenSupport.T2, s);
+        CgenSupport.emitStore(CgenSupport.T1, 3, CgenSupport.ACC, s);
+        CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP, 4, s);
     }
 
 
@@ -1143,6 +1336,16 @@ class neg extends Expression {
       * @param s the output stream 
       * */
     public void code(CgenClassTable table, PrintStream s) {
+        // evaluate e1 and store pointer in ACC
+        e1.code(table, s);
+        // copy int object and store pointer to newly allocated int in ACC
+        CgenSupport.emitJal("Object.copy", s);
+        // extract int attribute from int object
+        CgenSupport.emitLoad(CgenSupport.T1, 3, CgenSupport.ACC, s);
+        // perform the neg
+        CgenSupport.emitNeg(CgenSupport.T1, CgenSupport.T1, s);
+        // store result in newly allocated int
+        CgenSupport.emitStore(CgenSupport.T1, 3, CgenSupport.ACC, s);
     }
 
 
@@ -1189,6 +1392,30 @@ class lt extends Expression {
       * @param s the output stream 
       * */
     public void code(CgenClassTable table, PrintStream s) {
+        // first few lines similar to add
+        e1.code(table, s);
+        CgenSupport.emitPush(CgenSupport.ACC, s);
+        e2.code(table, s);
+        CgenSupport.emitLoad(CgenSupport.T1, 1, CgenSupport.SP, s);
+        CgenSupport.emitLoad(CgenSupport.T1, 3, CgenSupport.T1, s);
+        CgenSupport.emitLoad(CgenSupport.T2, 3, CgenSupport.ACC, s);
+
+        // set up label numbers
+        int trueLabel = table.getNextLabel();
+        int endLabel = table.getNextLabel();
+
+        // blt $t1 $a0 trueLabel
+        CgenSupport.emitBlt(CgenSupport.T1, CgenSupport.ACC, trueLabel, s);
+        // load false into ACC
+        CgenSupport.emitLoadBool(CgenSupport.ACC, BoolConst.falsebool,s);
+        // b endLabel
+        CgenSupport.emitBranch(endLabel, s);
+        // trueLabel:
+        CgenSupport.emitLabelDef(trueLabel,s);
+        // load true into ACC
+        CgenSupport.emitLoadBool(CgenSupport.ACC, BoolConst.truebool,s);
+        // endLabel:
+        CgenSupport.emitLabelDef(endLabel, s);
     }
 
 
@@ -1235,6 +1462,23 @@ class eq extends Expression {
       * @param s the output stream 
       * */
     public void code(CgenClassTable table, PrintStream s) {
+        // first few lines similar to add
+        e1.code(table, s);
+        CgenSupport.emitPush(CgenSupport.ACC, s);
+        e2.code(table, s);
+
+        // get object pointers into $t1 and $t2
+        CgenSupport.emitLoad(CgenSupport.T1, 1, CgenSupport.SP, s);
+        CgenSupport.emitMove(CgenSupport.T2, CgenSupport.ACC, s);
+        //restore stac, pointer
+        CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP, 4, s);
+
+        // store true in $a0
+        CgenSupport.emitLoadBool(CgenSupport.ACC, BoolConst.truebool, s);
+        // store false in $a1
+        CgenSupport.emitLoadBool(CgenSupport.A1, BoolConst.falsebool, s);
+        // put $a0 (true) into ACC if t1=t2, else put $a1 (false) into ACC
+        CgenSupport.emitJal("equality_test", s);
     }
 
 
@@ -1281,6 +1525,21 @@ class leq extends Expression {
       * @param s the output stream 
       * */
     public void code(CgenClassTable table, PrintStream s) {
+        // same as lt but with emitBleq
+        e1.code(table, s);
+        CgenSupport.emitPush(CgenSupport.ACC, s);
+        e2.code(table, s);
+        CgenSupport.emitLoad(CgenSupport.T1, 1, CgenSupport.SP, s);
+        CgenSupport.emitLoad(CgenSupport.T1, 3, CgenSupport.T1, s);
+        CgenSupport.emitLoad(CgenSupport.T2, 3, CgenSupport.ACC, s);
+        int trueLabel = table.getNextLabel();
+        int endLabel = table.getNextLabel();
+        CgenSupport.emitBleq(CgenSupport.T1, CgenSupport.ACC, trueLabel, s);
+        CgenSupport.emitLoadBool(CgenSupport.ACC, BoolConst.falsebool,s);
+        CgenSupport.emitBranch(endLabel, s);
+        CgenSupport.emitLabelDef(trueLabel,s);
+        CgenSupport.emitLoadBool(CgenSupport.ACC, BoolConst.truebool,s);
+        CgenSupport.emitLabelDef(endLabel, s);
     }
 
 
@@ -1322,6 +1581,27 @@ class comp extends Expression {
       * @param s the output stream 
       * */
     public void code(CgenClassTable table, PrintStream s) {
+        // evaluate expression and store pointer to resulting bool object in ACC
+        e1.code(table, s);
+        // extract bool attribute from bool object
+        CgenSupport.emitLoad(CgenSupport.T1, 3, CgenSupport.ACC, s);
+
+        // set up label numbers
+        int falseLabel = table.getNextLabel();
+        int endLabel = table.getNextLabel();
+
+        // beqz $t1 falseLabel
+        CgenSupport.emitBeqz(CgenSupport.T1, falseLabel, s);
+        // load false into ACC (since e1 is true)
+        CgenSupport.emitLoadBool(CgenSupport.ACC, BoolConst.falsebool, s);
+        // b endLabel
+        CgenSupport.emitBranch(endLabel, s);
+        // falseLabel:
+        CgenSupport.emitLabelDef(falseLabel, s);
+        // load true into ACC (since e1 is false)
+        CgenSupport.emitLoadBool(CgenSupport.ACC, BoolConst.truebool, s);
+        // endLabel:
+        CgenSupport.emitLabelDef(endLabel, s);
     }
 
 
@@ -1528,6 +1808,24 @@ class isvoid extends Expression {
       * @param s the output stream 
       * */
     public void code(CgenClassTable table, PrintStream s) {
+        e1.code(table, s);
+
+        // set up label numbers
+        int trueLabel = table.getNextLabel();
+        int endLabel = table.getNextLabel();
+
+        // beqz $a0 trueLabel
+        CgenSupport.emitBeqz(CgenSupport.ACC, trueLabel, s);
+        // load false into ACC (since e1 is not void)
+        CgenSupport.emitLoadBool(CgenSupport.ACC, BoolConst.falsebool, s);
+        // b endLabel
+        CgenSupport.emitBranch(endLabel, s);
+        // trueLabel:
+        CgenSupport.emitLabelDef(trueLabel, s);
+        // load true into ACC (since e1 is void)
+        CgenSupport.emitLoadBool(CgenSupport.ACC, BoolConst.truebool, s);
+        // endLabel:
+        CgenSupport.emitLabelDef(endLabel, s);
     }
 
 
