@@ -558,7 +558,28 @@ class assign extends Expression {
       * @param s the output stream 
       * */
     public void code(CgenClassTable table, PrintStream s) {
-
+        expr.code(table, s);
+        if (table.lookup(name) == null) {
+            // Variable name not in current scope, so it is an attribute.
+            // Get attribute offset
+            Vector<attr> attrs = table.currentSelf.attrs;
+            int attrOffset = 3;
+            for (int i = 0; i < attrs.size(); i++) {
+                if (attrs.get(i).name.equals(name)) {
+                    attrOffset = 3 + i;
+                    break;
+                }
+            }
+            CgenSupport.emitStore(CgenSupport.ACC, attrOffset, CgenSupport.SELF, s);
+            if (Flags.cgen_Memmgr != Flags.GC_NOGC) {
+                CgenSupport.emitAddiu(CgenSupport.A1, CgenSupport.SELF, CgenSupport.WORD_SIZE * attrOffset, s);
+                CgenSupport.emitGCAssign(s);
+            }
+        } else {
+            // Variable name is in current scope, so get offset in the frame
+            int offset = (Integer) table.lookup(name);
+            CgenSupport.emitStore(CgenSupport.ACC, offset, CgenSupport.FP, s);
+        }
     }
 
 
@@ -623,7 +644,7 @@ class static_dispatch extends Expression {
         for (int i = 0; i < actual.getLength(); i++) {
             Expression a = (Expression) actual.getNth(i);
             a.code(table, s);
-            CgenSupport.emitPush(CgenSupport.ACC, s);
+            table.emitPush(CgenSupport.ACC, s);
         }
 
         // evaluate expr and store result in ACC
@@ -658,7 +679,6 @@ class static_dispatch extends Expression {
 
         // voidLabel:
         CgenSupport.emitLabelDef(voidLabel, s);
-        //StringSymbol filename = (StringSymbol) ((CgenNode) table.lookup(TreeConstants.self)).getFilename();
         StringSymbol filename = (StringSymbol) exprNode.getFilename();
         CgenSupport.emitLoadString(CgenSupport.ACC, filename, s);
         CgenSupport.emitLoadImm(CgenSupport.T1, getLineNumber(), s);
@@ -725,7 +745,7 @@ class dispatch extends Expression {
         for (int i = 0; i < actual.getLength(); i++) {
             Expression a = (Expression) actual.getNth(i);
             a.code(table, s);
-            CgenSupport.emitPush(CgenSupport.ACC, s);
+            table.emitPush(CgenSupport.ACC, s);
         }
 
         // evaluate expr and store result in ACC
@@ -761,7 +781,6 @@ class dispatch extends Expression {
 
         // voidLabel:
         CgenSupport.emitLabelDef(voidLabel, s);
-        //StringSymbol filename = (StringSymbol) ((CgenNode) table.lookup(TreeConstants.self)).getFilename();
         StringSymbol filename = (StringSymbol) exprNode.getFilename();
         CgenSupport.emitLoadString(CgenSupport.ACC, filename, s);
         CgenSupport.emitLoadImm(CgenSupport.T1, getLineNumber(), s);
@@ -957,6 +976,25 @@ class typcase extends Expression {
       * @param s the output stream 
       * */
     public void code(CgenClassTable table, PrintStream s) {
+        expr.code(table, s);
+
+        // Error: Case on void
+        int notVoidCaseExpr = table.getNextLabel();
+        int endLabel = table.getNextLabel();
+        CgenSupport.emitBne(CgenSupport.ACC, CgenSupport.ZERO, notVoidCaseExpr, s);
+        CgenSupport.emitLoadString(CgenSupport.ACC, (StringSymbol) table.currentSelf.getFilename(), s);
+        CgenSupport.emitLoadImm(CgenSupport.T1, getLineNumber(), s);
+        CgenSupport.emitJal("_case_abort2", s);
+
+        CgenSupport.emitLabelDef(notVoidCaseExpr, s);
+
+        for (Enumeration e = cases.getElements(); e.hasMoreElements();) {
+            branch b = (branch) e.nextElement();
+            
+        }
+
+        CgenSupport.emitLabelDef(endLabel, s);
+        CgenSupport.emitJal("_case_abort", s);
     }
 
 
@@ -1058,6 +1096,32 @@ class let extends Expression {
       * @param s the output stream 
       * */
     public void code(CgenClassTable table, PrintStream s) {
+        if(init instanceof no_expr) {
+            // Set to default value of object if no initialization, default void if not basic class
+            if (type_decl.equals(TreeConstants.Int))
+                CgenSupport.emitLoadInt(CgenSupport.ACC, (IntSymbol) AbstractTable.inttable.lookup("0"), s);
+            else if (type_decl.equals(TreeConstants.Str))
+                CgenSupport.emitLoadString(CgenSupport.ACC, (StringSymbol) AbstractTable.stringtable.lookup(""), s);
+            else if (type_decl.equals(TreeConstants.Bool))
+                CgenSupport.emitLoadBool(CgenSupport.ACC, BoolConst.falsebool, s);
+            else
+                CgenSupport.emitMove(CgenSupport.ACC, CgenSupport.ZERO, s);
+        } else {
+            init.code(table, s);
+        }
+
+        table.enterScope();
+        // Map identifier to offset and decrement frame offset
+        table.addId(identifier, table.frameOffset);
+        // Push identifier value onto stack
+        table.emitPush(CgenSupport.ACC, s);
+        // Generate code for body of let
+        body.code(table, s);
+        // Increment frame offset and stack pointer back to previous value
+        table.emitPop(s);
+        table.exitScope();
+
+
     }
 
 
@@ -1107,7 +1171,7 @@ class plus extends Expression {
         // evaluate e1, store pointer in ACC
         e1.code(table, s);
         // push ACC onto stack
-        CgenSupport.emitPush(CgenSupport.ACC, s);
+        table.emitPush(CgenSupport.ACC, s);
         // evaluate e2, store pointer in ACC
         e2.code(table, s);
         // copy ACC, store pointer of the new int object in ACC
@@ -1123,7 +1187,7 @@ class plus extends Expression {
         // store result in the newly allocated int object
         CgenSupport.emitStore(CgenSupport.T1, 3, CgenSupport.ACC, s);
         // restore stack pointer
-        CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP, 4, s);
+        table.emitPop(s);
     }
 
 
@@ -1172,7 +1236,7 @@ class sub extends Expression {
     public void code(CgenClassTable table, PrintStream s) {
         // same as add but with emitSub
         e1.code(table, s);
-        CgenSupport.emitPush(CgenSupport.ACC, s);
+        table.emitPush(CgenSupport.ACC, s);
         e2.code(table, s);
         CgenSupport.emitJal("Object.copy", s);
         CgenSupport.emitLoad(CgenSupport.T1, 1, CgenSupport.SP, s);
@@ -1180,7 +1244,7 @@ class sub extends Expression {
         CgenSupport.emitLoad(CgenSupport.T2, 3, CgenSupport.ACC, s);
         CgenSupport.emitSub(CgenSupport.T1, CgenSupport.T1, CgenSupport.T2, s);
         CgenSupport.emitStore(CgenSupport.T1, 3, CgenSupport.ACC, s);
-        CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP, 4, s);
+        table.emitPop(s);
     }
 
 
@@ -1229,7 +1293,7 @@ class mul extends Expression {
     public void code(CgenClassTable table, PrintStream s) {
         // same as add but with emitMul
         e1.code(table, s);
-        CgenSupport.emitPush(CgenSupport.ACC, s);
+        table.emitPush(CgenSupport.ACC, s);
         e2.code(table, s);
         CgenSupport.emitJal("Object.copy", s);
         CgenSupport.emitLoad(CgenSupport.T1, 1, CgenSupport.SP, s);
@@ -1237,7 +1301,7 @@ class mul extends Expression {
         CgenSupport.emitLoad(CgenSupport.T2, 3, CgenSupport.ACC, s);
         CgenSupport.emitMul(CgenSupport.T1, CgenSupport.T1, CgenSupport.T2, s);
         CgenSupport.emitStore(CgenSupport.T1, 3, CgenSupport.ACC, s);
-        CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP, 4, s);
+        table.emitPop(s);
     }
 
 
@@ -1286,7 +1350,7 @@ class divide extends Expression {
     public void code(CgenClassTable table, PrintStream s) {
         // same as add but with emitDiv
         e1.code(table, s);
-        CgenSupport.emitPush(CgenSupport.ACC, s);
+        table.emitPush(CgenSupport.ACC, s);
         e2.code(table, s);
         CgenSupport.emitJal("Object.copy", s);
         CgenSupport.emitLoad(CgenSupport.T1, 1, CgenSupport.SP, s);
@@ -1294,7 +1358,7 @@ class divide extends Expression {
         CgenSupport.emitLoad(CgenSupport.T2, 3, CgenSupport.ACC, s);
         CgenSupport.emitDiv(CgenSupport.T1, CgenSupport.T1, CgenSupport.T2, s);
         CgenSupport.emitStore(CgenSupport.T1, 3, CgenSupport.ACC, s);
-        CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP, 4, s);
+        table.emitPop(s);
     }
 
 
@@ -1394,14 +1458,14 @@ class lt extends Expression {
     public void code(CgenClassTable table, PrintStream s) {
         // first few lines similar to add
         e1.code(table, s);
-        CgenSupport.emitPush(CgenSupport.ACC, s);
+        table.emitPush(CgenSupport.ACC, s);
         e2.code(table, s);
         CgenSupport.emitLoad(CgenSupport.T1, 1, CgenSupport.SP, s);
         CgenSupport.emitLoad(CgenSupport.T1, 3, CgenSupport.T1, s);
         CgenSupport.emitLoad(CgenSupport.T2, 3, CgenSupport.ACC, s);
 
         // restore stack pointer
-        CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP, 4, s);
+        table.emitPop(s);
 
         // set up label numbers
         int trueLabel = table.getNextLabel();
@@ -1467,14 +1531,14 @@ class eq extends Expression {
     public void code(CgenClassTable table, PrintStream s) {
         // first few lines similar to add
         e1.code(table, s);
-        CgenSupport.emitPush(CgenSupport.ACC, s);
+        table.emitPush(CgenSupport.ACC, s);
         e2.code(table, s);
 
         // get object pointers into $t1 and $t2
         CgenSupport.emitLoad(CgenSupport.T1, 1, CgenSupport.SP, s);
         CgenSupport.emitMove(CgenSupport.T2, CgenSupport.ACC, s);
         //restore stac, pointer
-        CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP, 4, s);
+        table.emitPop(s);
 
         // store true in $a0
         CgenSupport.emitLoadBool(CgenSupport.ACC, BoolConst.truebool, s);
@@ -1530,12 +1594,12 @@ class leq extends Expression {
     public void code(CgenClassTable table, PrintStream s) {
         // same as lt but with emitBleq
         e1.code(table, s);
-        CgenSupport.emitPush(CgenSupport.ACC, s);
+        table.emitPush(CgenSupport.ACC, s);
         e2.code(table, s);
         CgenSupport.emitLoad(CgenSupport.T1, 1, CgenSupport.SP, s);
         CgenSupport.emitLoad(CgenSupport.T1, 3, CgenSupport.T1, s);
         CgenSupport.emitLoad(CgenSupport.T2, 3, CgenSupport.ACC, s);
-        CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP, 4, s);
+        table.emitPop(s);
         int trueLabel = table.getNextLabel();
         int endLabel = table.getNextLabel();
         CgenSupport.emitBleq(CgenSupport.T1, CgenSupport.T2, trueLabel, s);
@@ -1771,6 +1835,19 @@ class new_ extends Expression {
       * @param s the output stream 
       * */
     public void code(CgenClassTable table, PrintStream s) {
+        String prototypeName;
+        // If SELF_TYPE, use name of current self object
+        if (type_name.equals(TreeConstants.SELF_TYPE)) {
+            prototypeName = table.currentSelf.getName().getString();
+        } else {
+            prototypeName = type_name.getString();
+        }
+        // Load object prototype address
+        CgenSupport.emitLoadAddress(CgenSupport.ACC, prototypeName + CgenSupport.PROTOBJ_SUFFIX, s);
+        // Call Object.copy to copy prototype object
+        CgenSupport.emitJal("Object.copy", s);
+        // Initialize object with init function
+        CgenSupport.emitJal(prototypeName + CgenSupport.CLASSINIT_SUFFIX, s);
     }
 
 
@@ -1907,6 +1984,26 @@ class object extends Expression {
       * @param s the output stream 
       * */
     public void code(CgenClassTable table, PrintStream s) {
+        if (name.equals(TreeConstants.self)) {
+            CgenSupport.emitMove(CgenSupport.ACC, CgenSupport.SELF, s);
+        } else {
+            if (table.lookup(name) == null) {
+                // Variable name not in current scope, so it is an attribute.
+                // Get attribute offset
+                int attrOffset = 3;
+                for (Enumeration e = table.currentSelf.attrs.elements(); e.hasMoreElements(); ) {
+                    attr a = (attr) e.nextElement();
+                    if (a.name.equals(name))
+                        break;
+                    attrOffset++;
+                }
+                CgenSupport.emitLoad(CgenSupport.ACC, attrOffset, CgenSupport.SELF, s);
+            } else {
+                // Variable name is in current scope, so get offset in the frame
+                int offset = (Integer) table.lookup(name);
+                CgenSupport.emitLoad(CgenSupport.ACC, offset, CgenSupport.FP, s);
+            }
+        }
     }
 
 

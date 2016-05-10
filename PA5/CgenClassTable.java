@@ -49,6 +49,9 @@ class CgenClassTable extends SymbolTable {
     // keeps track of the current SELF_TYPE class
     CgenNode currentSelf;
 
+    // keeps track of offset of stack from current frame
+    int frameOffset = -1;
+
     // The following methods emit code for constants and global
     // declarations.
 
@@ -631,6 +634,9 @@ class CgenClassTable extends SymbolTable {
     				addId(f.name, i++);
     			}
 
+    			// Reset frame offset
+    			frameOffset = -1;
+
     			// generate code for method body
     			m.expr.code(this, str);
 
@@ -662,5 +668,15 @@ class CgenClassTable extends SymbolTable {
     /* gets the label counter and increments */
     public int getNextLabel () {
     	return labelCounter ++;
+    }
+
+    public void emitPush(String reg, PrintStream s) {
+    	frameOffset--;
+    	CgenSupport.emitPush(reg, s);
+    }
+
+    public void emitPop(PrintStream s) {
+    	frameOffset++;
+    	CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP, 4, s);
     }
 }
