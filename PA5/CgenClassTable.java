@@ -635,7 +635,7 @@ class CgenClassTable extends SymbolTable {
     			}
 
     			// Reset frame offset
-    			frameOffset = -1;
+    			frameOffset = -4;
 
     			// generate code for method body
     			m.expr.code(this, str);

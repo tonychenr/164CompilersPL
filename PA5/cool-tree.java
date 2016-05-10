@@ -979,22 +979,59 @@ class typcase extends Expression {
         expr.code(table, s);
 
         // Error: Case on void
-        int notVoidCaseExpr = table.getNextLabel();
+        int notVoidCaseLabel = table.getNextLabel();
         int endLabel = table.getNextLabel();
-        CgenSupport.emitBne(CgenSupport.ACC, CgenSupport.ZERO, notVoidCaseExpr, s);
+        CgenSupport.emitBne(CgenSupport.ACC, CgenSupport.ZERO, notVoidCaseLabel, s);
         CgenSupport.emitLoadString(CgenSupport.ACC, (StringSymbol) table.currentSelf.getFilename(), s);
         CgenSupport.emitLoadImm(CgenSupport.T1, getLineNumber(), s);
         CgenSupport.emitJal("_case_abort2", s);
 
-        CgenSupport.emitLabelDef(notVoidCaseExpr, s);
+        CgenSupport.emitLabelDef(notVoidCaseLabel, s);
 
+            
         for (Enumeration e = cases.getElements(); e.hasMoreElements();) {
             branch b = (branch) e.nextElement();
-            
+            // Label for branch code body
+            int branchBodyLabel = table.getNextLabel();
+            // Label for start of next branch
+            int nextBranchLabel = table.getNextLabel();
+            // Get tag of this branch for comparison
+            CgenNode branchNode = (CgenNode) table.lookup(b.type_decl);
+            CgenSupport.emitLoadImm(CgenSupport.T2, branchNode.tag, s);
+
+            CgenNode currNode = (CgenNode) table.lookup(expr.get_type());
+            while (currNode != null) {
+                CgenSupport.emitLoadImm(CgenSupport.T1, currNode.tag, s);
+                CgenSupport.emitBeq(CgenSupport.T1, CgenSupport.T2, branchBodyLabel, s);
+                if (branchNode.tag == currNode.tag) {
+                    break;
+                }
+                currNode = currNode.getParentNd();
+            }
+
+            // Branch if no matching tag
+            CgenSupport.emitBranch(nextBranchLabel, s);
+
+            CgenSupport.emitLabelDef(branchBodyLabel, s);
+            // Enter scope for case expression branch
+            table.enterScope();
+            // Map branch name to offset
+            table.addId(b.name, table.frameOffset);
+            // Push expr value onto stack and decrement offset
+            table.emitPush(CgenSupport.ACC, s);
+            // Generate code for body of branch
+            b.expr.code(table, s);
+            // Increment frame offset and stack pointer back to previous value
+            table.emitPop(s);
+            table.exitScope();
+
+            // Branch to end, because we found match and ran code body
+            CgenSupport.emitBranch(endLabel, s);
+            CgenSupport.emitLabelDef(nextBranchLabel, s);
         }
 
-        CgenSupport.emitLabelDef(endLabel, s);
         CgenSupport.emitJal("_case_abort", s);
+        CgenSupport.emitLabelDef(endLabel, s);
     }
 
 
@@ -1111,17 +1148,15 @@ class let extends Expression {
         }
 
         table.enterScope();
-        // Map identifier to offset and decrement frame offset
+        // Map identifier to offset
         table.addId(identifier, table.frameOffset);
-        // Push identifier value onto stack
+        // Push identifier value onto stack and decrement offset
         table.emitPush(CgenSupport.ACC, s);
         // Generate code for body of let
         body.code(table, s);
         // Increment frame offset and stack pointer back to previous value
         table.emitPop(s);
         table.exitScope();
-
-
     }
 
 
