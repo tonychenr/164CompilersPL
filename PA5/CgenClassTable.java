@@ -613,7 +613,7 @@ class CgenClassTable extends SymbolTable {
     			enterScope();
     			str.print(node.name + CgenSupport.METHOD_SEP + m.name + CgenSupport.LABEL);
     			// offset for formals and fp, s0, ra
-    			int offset = - CgenSupport.WORD_SIZE * (m.formals.getLength() + 5);
+    			int offset = - CgenSupport.WORD_SIZE * (3);
     			// addiu $sp $sp offset
     			CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP, offset, str);
     			// sw $fp 12($sp)
@@ -623,19 +623,19 @@ class CgenClassTable extends SymbolTable {
     			// sw $ra 4($sp)
     			CgenSupport.emitStore(CgenSupport.RA, 1, CgenSupport.SP, str);
     			// addiu $fp $sp 16
-    			CgenSupport.emitAddiu(CgenSupport.FP, CgenSupport.SP, 16, str);
+    			CgenSupport.emitAddiu(CgenSupport.FP, CgenSupport.SP, 4, str);
     			// move $s0 $a0
     			CgenSupport.emitMove(CgenSupport.SELF, CgenSupport.ACC, str);
 
     			// map formal parameters to offsets
-    			int i = 1;
+    			int i = m.formals.getLength() + 2;
     			for (Enumeration e = m.formals.getElements(); e.hasMoreElements(); ) {
     				formalc f = (formalc) e.nextElement();
-    				addId(f.name, i++);
+    				addId(f.name, i--);
     			}
 
     			// Reset frame offset
-    			frameOffset = -4;
+    			frameOffset = -1;
 
     			// generate code for method body
     			m.expr.code(this, str);
@@ -646,8 +646,11 @@ class CgenClassTable extends SymbolTable {
     			CgenSupport.emitLoad(CgenSupport.SELF, 2, CgenSupport.SP, str);
     			// lw $ra 4($sp)
     			CgenSupport.emitLoad(CgenSupport.RA, 1, CgenSupport.SP, str);
+    			// Pop current frame.
+    			CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP,  -offset + CgenSupport.WORD_SIZE * m.formals.getLength(), str);
     			// addiu $sp $sp -offset
-    			CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP, -offset, str);
+    			// Pop old frame
+    			// CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP, -offset, str);
     			// jr $ra
     			CgenSupport.emitReturn(str);
     			exitScope();
