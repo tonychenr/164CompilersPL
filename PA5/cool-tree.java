@@ -571,6 +571,7 @@ class assign extends Expression {
                 }
             }
             CgenSupport.emitStore(CgenSupport.ACC, attrOffset, CgenSupport.SELF, s);
+            // Garbage collection as specified in runtime manual
             if (Flags.cgen_Memmgr != Flags.GC_NOGC) {
                 CgenSupport.emitAddiu(CgenSupport.A1, CgenSupport.SELF, CgenSupport.WORD_SIZE * attrOffset, s);
                 CgenSupport.emitGCAssign(s);
@@ -679,7 +680,7 @@ class static_dispatch extends Expression {
 
         // voidLabel:
         CgenSupport.emitLabelDef(voidLabel, s);
-        StringSymbol filename = (StringSymbol) exprNode.getFilename();
+        StringSymbol filename = (StringSymbol) table.currentSelf.getFilename();
         CgenSupport.emitLoadString(CgenSupport.ACC, filename, s);
         CgenSupport.emitLoadImm(CgenSupport.T1, getLineNumber(), s);
         CgenSupport.emitJal("_dispatch_abort", s);
@@ -781,7 +782,7 @@ class dispatch extends Expression {
 
         // voidLabel:
         CgenSupport.emitLabelDef(voidLabel, s);
-        StringSymbol filename = (StringSymbol) exprNode.getFilename();
+        StringSymbol filename = (StringSymbol) table.currentSelf.getFilename();
         CgenSupport.emitLoadString(CgenSupport.ACC, filename, s);
         CgenSupport.emitLoadImm(CgenSupport.T1, getLineNumber(), s);
         CgenSupport.emitJal("_dispatch_abort", s);

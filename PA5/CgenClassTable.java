@@ -586,6 +586,21 @@ class CgenClassTable extends SymbolTable {
     	if (!node.name.equals(TreeConstants.Object_))
     		CgenSupport.emitJal(node.getParentNd().name.getString() + CgenSupport.CLASSINIT_SUFFIX, str);
 
+    	// initialize attributes
+
+		for (int i = 0; i < node.attrs.size(); i++) {
+			attr currAttr = node.attrs.get(i);
+            if (!(currAttr.init instanceof no_expr)) {
+            	currAttr.init.code(this, str);
+                int attrOffset = 3 + i;
+	            CgenSupport.emitStore(CgenSupport.ACC, attrOffset, CgenSupport.SELF, str);
+	            // Garbage collection as specified in runtime manual
+	            if (Flags.cgen_Memmgr != Flags.GC_NOGC) {
+	                CgenSupport.emitAddiu(CgenSupport.A1, CgenSupport.SELF, CgenSupport.WORD_SIZE * attrOffset, str);
+	                CgenSupport.emitGCAssign(str);
+	            }
+            }
+		}
     	// move $a0 $s0
     	CgenSupport.emitMove(CgenSupport.ACC, CgenSupport.SELF, str);
     	// lw $fp 12($sp)
@@ -646,11 +661,8 @@ class CgenClassTable extends SymbolTable {
     			CgenSupport.emitLoad(CgenSupport.SELF, 2, CgenSupport.SP, str);
     			// lw $ra 4($sp)
     			CgenSupport.emitLoad(CgenSupport.RA, 1, CgenSupport.SP, str);
-    			// Pop current frame.
+    			// Pop current frame's registers and arguments saved in stack.
     			CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP,  -offset + CgenSupport.WORD_SIZE * m.formals.getLength(), str);
-    			// addiu $sp $sp -offset
-    			// Pop old frame
-    			// CgenSupport.emitAddiu(CgenSupport.SP, CgenSupport.SP, -offset, str);
     			// jr $ra
     			CgenSupport.emitReturn(str);
     			exitScope();

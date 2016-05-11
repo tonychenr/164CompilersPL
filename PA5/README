@@ -176,8 +176,38 @@ Instructions
 Write-up for PA5
 ----------------
 
+Expression code generation is done in cool-tree.java in the code() methods.
+Object tables, object name table, prototype object table, dispatch table are done in CgenClassTable.
+Object initialization and method initializations, which call expression code generation functions,
+are also done in CgenClassTable.
 
+For assign, it either generates code for an object attribute assignment or an assignment
+to a formal in the stack. The frameOffset variable in CgenClassTable handles pushing new
+variables to the stack by providing the current offset from the frame pointer, so it can 
+be accessed later. The scope holds <formal name, frameOffset> pairs. Scope is updated
+in appropriate areas, such as let and case. Attribute offsets can be obtained from the 
+position in the Vector of attr's in the CgenNode.
 
+Function calls (dispatch) save the formal arguments. The function definition handles
+saving the $s0, $fp, and $ra. Formal arguments and the 3 saved registers
+are popped off the stack at the end of the function definition. The difference from lecture
+is the function definition handling pushing $fp to the stack instead of doing this in function call.
+We centralized saving registers into the method definition as it was easier to keep track them.
+
+The stack for dispatch of a function f(x1, x2) is x1|x2|old fp|s0|ra|...|. $fp points to the saved ra as in lecture.
+
+For case expressions, we generate a beq statement for each parent of the type of expr for each branch, because
+we want the closest ancestor among branches. This covers all parent types of the expr. There is a new scope
+as specified in the manual for the branch taken.
+
+We handle runtime errors in the respective expression subclass' code() method.
+
+The code generation for the rest of the expressions follow what is stated in the operational semantics
+of the manual.
+
+For tests, we try to test the behavior of every expression. We test the initialization of object attributes.
+We test runtime errors as stated in the spec. We also test the order of arguments in a dispatch to make
+sure we are pushing arguments correctly.
 
 
 
